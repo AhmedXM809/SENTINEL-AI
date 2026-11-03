@@ -1,14 +1,22 @@
 import sqlite3
 
 from fastapi import FastAPI, HTTPException
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.db.connection import get_connection
+from app.authentication.routes import router as authentication_router
 
 app = FastAPI(
     title="SENTINEL AI",
     description="AI Security Testing & Defense Platform",
     version="0.1.0",
 )
+
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["127.0.0.1", "localhost"],
+)
+app.include_router(authentication_router)
 
 
 @app.get("/", tags=["System"])

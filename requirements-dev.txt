@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# HTTP testing dependencies for FastAPI / Starlette TestClient
+httpx2==2.16.0
+httpcore2==2.16.0
+truststore==0.10.5
