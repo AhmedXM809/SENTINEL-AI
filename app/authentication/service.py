@@ -26,6 +26,8 @@ from app.authentication.login_security import (
     verify_csrf_token,
 )
 
+from app.authentication.mfa_flows import MFAService
+
 
 class AuthenticationFailed(Exception):
     """Generic authentication failure."""
@@ -49,6 +51,12 @@ class LoginResult:
     username: str
     session_token: str
     csrf_token: str
+    expires_at: str
+
+
+@dataclass(frozen=True)
+class MFAChallengeRequired:
+    challenge_token: str
     expires_at: str
 
 
@@ -134,7 +142,7 @@ class LoginService:
         self,
         username: str,
         password: str,
-    ) -> LoginResult:
+    ) -> LoginResult | MFAChallengeRequired:
         """Authenticate a user and create a session plus CSRF token."""
 
         normalized = _normalized_username(username)
@@ -238,54 +246,92 @@ class LoginService:
                 )
                 inactive = True
             else:
-                session_token, expires_at = create_session(
-                    connection,
-                    user_id=user["id"],
-                )
+                schema_version = connection.execute(
+                    "PRAGMA user_version"
+                ).fetchone()[0]
 
-                csrf_token = create_csrf_token(
-                    connection,
-                    session_token,
-                )
+                mfa_enabled = False
+                mfa_service = None
 
-                clear_login_attempts(
-                    connection,
-                    identifier_hash,
-                )
-
-                timestamp = (
-                    datetime.now(timezone.utc)
-                    .replace(microsecond=0)
-                    .isoformat()
-                    .replace("+00:00", "Z")
-                )
-
-                connection.execute(
-                    """
-                    INSERT INTO audit_log (
-                        id, user_id, action, resource_type,
-                        resource_id, outcome, created_at
+                # Keep schema-v4 installations compatible during the
+                # migration transition. MFA is enforced once schema v5
+                # is active.
+                if schema_version >= 5:
+                    mfa_service = MFAService(
+                        connection_factory=self._connection_factory,
+                        fingerprint_key=self._get_fingerprint_key(),
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        secrets.token_hex(16),
-                        user["id"],
-                        "auth.login.success",
-                        "session",
-                        None,
-                        "success",
-                        timestamp,
-                    ),
-                )
 
-                result = LoginResult(
-                    user_id=user["id"],
-                    username=current_user["username"],
-                    session_token=session_token,
-                    csrf_token=csrf_token,
-                    expires_at=expires_at,
-                )
+                    mfa_enabled = mfa_service.is_enabled(
+                        connection,
+                        user["id"],
+                    )
+
+                if mfa_enabled:
+                    clear_login_attempts(
+                        connection,
+                        identifier_hash,
+                    )
+
+                    challenge = mfa_service.create_challenge(
+                        connection,
+                        user["id"],
+                    )
+
+                    result = MFAChallengeRequired(
+                        challenge_token=challenge.challenge_token,
+                        expires_at=challenge.expires_at,
+                    )
+
+                else:
+                    session_token, expires_at = create_session(
+                        connection,
+                        user_id=user["id"],
+                    )
+
+                    csrf_token = create_csrf_token(
+                        connection,
+                        session_token,
+                    )
+
+                    clear_login_attempts(
+                        connection,
+                        identifier_hash,
+                    )
+
+                    timestamp = (
+                        datetime.now(timezone.utc)
+                        .replace(microsecond=0)
+                        .isoformat()
+                        .replace("+00:00", "Z")
+                    )
+
+                    connection.execute(
+                        """
+                        INSERT INTO audit_log (
+                            id, user_id, action, resource_type,
+                            resource_id, outcome, created_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            secrets.token_hex(16),
+                            user["id"],
+                            "auth.login.success",
+                            "session",
+                            None,
+                            "success",
+                            timestamp,
+                        ),
+                    )
+
+                    result = LoginResult(
+                        user_id=user["id"],
+                        username=current_user["username"],
+                        session_token=session_token,
+                        csrf_token=csrf_token,
+                        expires_at=expires_at,
+                    )
 
         if inactive or result is None:
             raise AuthenticationFailed(
@@ -293,6 +339,162 @@ class LoginService:
             )
 
         return result
+
+    def verify_session_password(
+        self,
+        session_token: str,
+        password: str,
+    ) -> bool:
+        """Require fresh password verification for sensitive MFA operations."""
+
+        if not isinstance(password, str):
+            raise AuthenticationFailed("Password verification failed.")
+
+        candidate = _safe_password_candidate(password)
+
+        with self._connection_factory() as connection:
+            user_id = get_session_user(connection, session_token)
+
+            if user_id is None:
+                raise AuthenticationFailed(
+                    "Password verification failed."
+                )
+
+            user = connection.execute(
+                """
+                SELECT id, username, password_hash
+                FROM users
+                WHERE id = ? AND is_active = 1
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+
+        if user is None:
+            raise AuthenticationFailed(
+                "Password verification failed."
+            )
+
+        try:
+            identifier_hash = fingerprint_identifier(
+                user["username"],
+                self._get_fingerprint_key(),
+            )
+        except LoginSecurityError:
+            raise AuthenticationConfigurationError(
+                "Login security configuration is unavailable."
+            ) from None
+
+        with self._connection_factory() as connection:
+            throttle = check_login_throttle(
+                connection,
+                identifier_hash,
+            )
+
+        if not throttle.allowed:
+            raise LoginRateLimited(throttle.retry_after_seconds)
+
+        try:
+            password_matches = verify_password(
+                candidate,
+                user["password_hash"],
+            )
+        except (ValueError, TypeError):
+            password_matches = False
+
+        def audit_reauthentication(
+            connection: sqlite3.Connection,
+            outcome: str,
+        ) -> None:
+            timestamp = (
+                datetime.now(timezone.utc)
+                .replace(microsecond=0)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+
+            connection.execute(
+                """
+                INSERT INTO audit_log (
+                    id, user_id, action, resource_type,
+                    resource_id, outcome, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    secrets.token_hex(16),
+                    user_id,
+                    "auth.mfa.reauthentication",
+                    "user_mfa",
+                    user_id,
+                    outcome,
+                    timestamp,
+                ),
+            )
+
+        if not password_matches or candidate != password:
+            with self._connection_factory() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+
+                current_user_id = get_session_user(
+                    connection,
+                    session_token,
+                )
+
+                if current_user_id != user_id:
+                    raise AuthenticationFailed(
+                        "Password verification failed."
+                    )
+
+                latest = check_login_throttle(
+                    connection,
+                    identifier_hash,
+                )
+
+                if not latest.allowed:
+                    raise LoginRateLimited(
+                        latest.retry_after_seconds
+                    )
+
+                record_failed_login(
+                    connection,
+                    identifier_hash,
+                    user_id=user_id,
+                )
+
+                audit_reauthentication(connection, "failure")
+
+            raise AuthenticationFailed(
+                "Password verification failed."
+            )
+
+        with self._connection_factory() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+
+            current_user_id = get_session_user(
+                connection,
+                session_token,
+            )
+
+            if current_user_id != user_id:
+                raise AuthenticationFailed(
+                    "Password verification failed."
+                )
+
+            latest = check_login_throttle(
+                connection,
+                identifier_hash,
+            )
+
+            if not latest.allowed:
+                raise LoginRateLimited(
+                    latest.retry_after_seconds
+                )
+
+            clear_login_attempts(connection, identifier_hash)
+            audit_reauthentication(connection, "success")
+
+        return True
 
     def get_current_user(
         self,
