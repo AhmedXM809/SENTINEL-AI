@@ -1,4 +1,8 @@
-﻿from fastapi import FastAPI
+import sqlite3
+
+from fastapi import FastAPI, HTTPException
+
+from app.db.connection import get_connection
 
 app = FastAPI(
     title="SENTINEL AI",
@@ -21,4 +25,57 @@ async def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": "SENTINEL AI API",
+    }
+
+
+@app.get("/health/ready", tags=["System"])
+def readiness() -> dict[str, str]:
+    try:
+        with get_connection() as connection:
+            result = connection.execute(
+                "SELECT 1"
+            ).fetchone()
+
+            foreign_keys = connection.execute(
+                "PRAGMA foreign_keys"
+            ).fetchone()[0]
+
+            schema_version = connection.execute(
+                "PRAGMA user_version"
+            ).fetchone()[0]
+
+            table_count = connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name NOT LIKE 'sqlite_%'
+                """
+            ).fetchone()[0]
+
+            if (
+                result is None
+                or result[0] != 1
+                or foreign_keys != 1
+                or schema_version != 1
+                or table_count != 15
+            ):
+                raise HTTPException(
+                    status_code=503,
+                    detail="Database is not ready.",
+                )
+
+    except (sqlite3.Error, OSError):
+        raise HTTPException(
+            status_code=503,
+            detail="Database is not ready.",
+        ) from None
+
+    return {
+        "status": "ready",
+        "service": "SENTINEL AI API",
+        "database": "connected",
+        "schema_version": "1",
+        "tables": "15",
+        "foreign_keys": "enabled",
     }
