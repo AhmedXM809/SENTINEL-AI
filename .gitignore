@@ -1,0 +1,40 @@
+﻿# Python environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Python testing and caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+!config.example.env
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Logs and temporary files
+*.log
+tmp/
+
+# Sensitive or generated evidence
+evidence/raw/
+evidence/reports/
+reports/generated/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor settings
+.vscode/
