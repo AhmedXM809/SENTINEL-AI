@@ -57,8 +57,8 @@ def readiness() -> dict[str, str]:
                 result is None
                 or result[0] != 1
                 or foreign_keys != 1
-                or schema_version not in (1, 2)
-                or table_count != 15
+                or schema_version not in (1, 2, 3)
+                or table_count != (16 if schema_version == 3 else 15)
             ):
                 raise HTTPException(
                     status_code=503,
@@ -76,6 +76,6 @@ def readiness() -> dict[str, str]:
         "service": "SENTINEL AI API",
         "database": "connected",
         "schema_version": str(schema_version),
-        "tables": "15",
+        "tables": str(table_count),
         "foreign_keys": "enabled",
     }
