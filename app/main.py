@@ -57,8 +57,8 @@ def readiness() -> dict[str, str]:
                 result is None
                 or result[0] != 1
                 or foreign_keys != 1
-                or schema_version not in (1, 2, 3)
-                or table_count != (16 if schema_version == 3 else 15)
+                or schema_version not in (1, 2, 3, 4)
+                or table_count != (16 if schema_version in (3, 4) else 15)
             ):
                 raise HTTPException(
                     status_code=503,
