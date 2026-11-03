@@ -7,7 +7,7 @@ from pwdlib import PasswordHash
 
 from app.authentication.passwords import hash_password
 
-MIN_PASSWORD_LENGTH = 15
+MIN_PASSWORD_LENGTH = 8
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{2,63}$")
 
 
