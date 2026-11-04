@@ -891,6 +891,217 @@
     byId("run-ai002-button").addEventListener("click", () => {
         void runAI002();
     });
+
+    function renderAI003Results(data) {
+        const result = data?.simulation;
+
+        if (
+            !result
+            || result.scenario_id !== "AI-003"
+            || !result.vulnerable_agent
+            || !result.secure_agent
+            || !Array.isArray(result.vulnerable_agent.results)
+            || !Array.isArray(result.secure_agent.results)
+        ) {
+            throw new Error("The AI-003 result structure was not valid.");
+        }
+
+        const vulnerable = result.vulnerable_agent;
+        const secure = result.secure_agent;
+        const vulnerableResults = vulnerable.results;
+        const secureResults = secure.results;
+
+        const formatToolDecisions = (items) => items.map((item, index) => {
+            const rules = Array.isArray(item.detection_rules)
+                ? item.detection_rules
+                : [];
+
+            return [
+                `${index + 1}. ${String(item.tool_name || "Unknown tool")}`,
+                `   Decision: ${String(item.decision || "Not reported")}`,
+                `   Accepted: ${item.accepted === true ? "YES" : "NO"}`,
+                `   Detection rules: ${rules.length ? rules.join(" / ") : "None"}`
+            ].join("\n");
+        }).join("\n\n");
+
+        const secureRuleIds = [
+            ...new Set(
+                secureResults.flatMap((item) => (
+                    Array.isArray(item.detection_rules)
+                        ? item.detection_rules
+                        : []
+                ))
+            )
+        ];
+
+        const vulnerableAccepted = vulnerableResults.filter(
+            (item) => item.accepted === true
+        ).length;
+        const secureDenied = secureResults.filter(
+            (item) => item.accepted === false
+        ).length;
+
+        const allowlistEnforced = secureRuleIds.includes("AGENT-ALLOWLIST-001");
+        const permissionEnforced = secureRuleIds.includes("AGENT-PERM-001");
+
+        const noRealOperations = (
+            result.real_tools_invoked === false
+            && result.real_shell_used === false
+            && result.real_filesystem_accessed === false
+            && result.real_network_requests_sent === false
+            && result.real_accounts_modified === false
+        );
+
+        const passed = (
+            result.simulation_only === true
+            && result.persisted === false
+            && result.attempt_count === 4
+            && vulnerableResults.length === 4
+            && secureResults.length === 4
+            && vulnerableAccepted === 4
+            && vulnerable.canary_exposed === true
+            && secureDenied === 4
+            && secure.canary_exposed === false
+            && allowlistEnforced
+            && permissionEnforced
+            && noRealOperations
+            && result.blue_team_control === "PASS"
+            && result.assessment_result === "PASS"
+        );
+
+        const overall = byId("ai003-overall-status");
+        overall.textContent = passed
+            ? "BLUE TEAM CONTROL: PASS"
+            : "REVIEW REQUIRED";
+        overall.className = passed
+            ? "assessment-outcome pass"
+            : "assessment-outcome review";
+
+        byId("ai003-execution-type").textContent = "Deterministic in-memory mock";
+        byId("ai003-attempt-count").textContent = String(result.attempt_count ?? "Not reported");
+        byId("ai003-audit-status").textContent = data.audit_recorded === true
+            ? "Recorded in local audit log"
+            : "Audit record not confirmed";
+
+        const vulnerableState = byId("ai003-vulnerable-state");
+        vulnerableState.textContent = `${vulnerableAccepted} / 4 ACCEPTED`;
+        vulnerableState.className = vulnerableAccepted === 4
+            ? "result-state unblocked"
+            : "result-state";
+
+        const secureState = byId("ai003-secure-state");
+        secureState.textContent = `${secureDenied} / 4 DENIED`;
+        secureState.className = secureDenied === 4
+            ? "result-state blocked"
+            : "result-state unblocked";
+
+        byId("ai003-vulnerable-accepted").textContent =
+            `${vulnerableAccepted} of 4 unauthorized requests accepted`;
+        byId("ai003-vulnerable-canary").textContent =
+            vulnerable.canary_exposed === true
+                ? "Exposed by vulnerable mock"
+                : "No exposure reported";
+
+        byId("ai003-secure-denied").textContent =
+            `${secureDenied} of 4 requests denied`;
+        byId("ai003-secure-canary").textContent =
+            secure.canary_exposed === false
+                ? "Not exposed by protected mock"
+                : "Exposure detected or not confirmed";
+
+        byId("ai003-vulnerable-details").textContent =
+            formatToolDecisions(vulnerableResults);
+        byId("ai003-secure-details").textContent =
+            formatToolDecisions(secureResults);
+
+        byId("ai003-allowlist-status").textContent =
+            allowlistEnforced ? "Enforced / rule triggered" : "Not confirmed";
+        byId("ai003-permission-status").textContent =
+            permissionEnforced ? "Enforced / rule triggered" : "Not confirmed";
+        byId("ai003-real-operations-status").textContent =
+            noRealOperations ? "None invoked" : "Unexpected activity reported";
+        byId("ai003-controls-status").textContent =
+            String(result.blue_team_control || "Not reported");
+
+        byId("ai003-limitations").textContent = Array.isArray(result.limitations)
+            ? result.limitations.join(" ")
+            : "No limitations were reported.";
+
+        byId("ai003-results").hidden = false;
+    }
+
+    async function runAI003() {
+        const permissions = Array.isArray(currentUser?.permissions)
+            ? currentUser.permissions
+            : [];
+
+        if (
+            !permissions.includes("assessments.execute")
+            || !permissions.includes("targets.read")
+        ) {
+            showFeedback(
+                byId("assessment-feedback"),
+                "Your account does not have the permissions required to execute this assessment.",
+                "error"
+            );
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Run the fixed AI-003 agent tool-misuse simulation?\n\n"
+            + "It evaluates four synthetic tool requests against vulnerable and protected mock agents.\n"
+            + "No real shell, filesystem, network, or account operations are performed. "
+            + "Only one audit event is recorded; no assessment, test-run, finding, or evidence "
+            + "records are created. No external AI provider is contacted.\n\n"
+            + "Continue?"
+        );
+        if (!confirmed) return;
+
+        const button = byId("run-ai003-button");
+        const label = button.querySelector("span:first-child");
+        button.disabled = true;
+        label.textContent = "Running controlled simulation...";
+        clearFeedback(byId("assessment-feedback"));
+        byId("ai003-results").hidden = true;
+
+        try {
+            const { data } = await apiRequest("/api/v1/simulations/AI-003/run", {
+                method: "POST",
+                csrf: true,
+                body: {}
+            });
+
+            renderAI003Results(data);
+            showFeedback(
+                byId("assessment-feedback"),
+                "AI-003 completed. The report is displayed in memory; only the audit event was recorded.",
+                "info"
+            );
+        } catch (error) {
+            if (error.status === 401) {
+                showLogin();
+                return;
+            }
+
+            const message = error.status === 403
+                ? "Execution was rejected. Check your assessment permissions and authenticated session."
+                : error.status === 409
+                    ? "Execution was blocked because the training profiles or deterministic mock configuration do not meet the required safety checks."
+                    : error.status === 503
+                        ? "The local database was unavailable. No successful execution was confirmed."
+                        : "AI-003 could not be completed. No successful result was confirmed.";
+
+            showFeedback(byId("assessment-feedback"), message, "error");
+        } finally {
+            button.disabled = false;
+            label.textContent = "Run AI-003 simulation";
+        }
+    }
+
+    byId("run-ai003-button").addEventListener("click", () => {
+        void runAI003();
+    });
+
     window.addEventListener("hashchange", () => {
         if (!byId("workspace").hidden) {
             applyCurrentView();

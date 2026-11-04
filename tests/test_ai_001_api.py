@@ -25,6 +25,7 @@ from app.main import app
 BASE_URL = "http://127.0.0.1:8002"
 ENDPOINT = "/api/v1/simulations/AI-001/run"
 ENDPOINT_AI002 = "/api/v1/simulations/AI-002/run"
+ENDPOINT_AI003 = "/api/v1/simulations/AI-003/run"
 
 
 class FakeAuthService:
@@ -210,6 +211,15 @@ class TestAI001SimulationAPI(unittest.TestCase):
             """
         ).fetchone()[0]
 
+        self.initial_ai003_audit_count = self.memory.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_log
+            WHERE action = 'ai_security.simulation.executed'
+              AND resource_id = 'AI-003'
+            """
+        ).fetchone()[0]
+
         self.initial_security_events = self.memory.execute(
             "SELECT COUNT(*) FROM security_events"
         ).fetchone()[0]
@@ -230,6 +240,13 @@ class TestAI001SimulationAPI(unittest.TestCase):
     def post_ai002(self, cookie=None, headers=None):
         return self.client.post(
             ENDPOINT_AI002,
+            cookies=cookie or {},
+            headers=headers or {"Origin": BASE_URL},
+        )
+
+    def post_ai003(self, cookie=None, headers=None):
+        return self.client.post(
+            ENDPOINT_AI003,
             cookies=cookie or {},
             headers=headers or {"Origin": BASE_URL},
         )
@@ -662,6 +679,235 @@ class TestAI001SimulationAPI(unittest.TestCase):
             audit_count,
             self.initial_ai002_audit_count + 2,
         )
+
+    def test_ai003_anonymous_user_is_rejected(self):
+        response = self.post_ai003()
+        self.assertEqual(response.status_code, 401)
+
+    def test_ai003_auditor_without_execute_permission_is_rejected(self):
+        response = self.post_ai003(
+            self.auditor_cookie,
+            self.headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_ai003_execute_only_without_target_read_is_rejected(self):
+        response = self.post_ai003(
+            {"sentinel_session": "execute-only-test-session"},
+            self.headers,
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_ai003_missing_csrf_is_rejected(self):
+        response = self.post_ai003(
+            self.analyst_cookie,
+            {"Origin": BASE_URL},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_ai003_untrusted_origin_is_rejected(self):
+        response = self.post_ai003(
+            self.admin_cookie,
+            {
+                "Origin": "http://untrusted.invalid",
+                "X-CSRF-Token": "test-csrf",
+            },
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_ai003_analyst_can_execute_controlled_simulation(self):
+        response = self.post_ai003(
+            self.analyst_cookie,
+            self.headers,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers.get("cache-control"),
+            "no-store",
+        )
+
+        body = response.json()
+        result = body["simulation"]
+
+        self.assertEqual(result["scenario_id"], "AI-003")
+        self.assertEqual(
+            result["scenario_name"],
+            "Agent Tool Misuse & Permission Enforcement",
+        )
+        self.assertTrue(result["simulation_only"])
+        self.assertFalse(result["persisted"])
+        self.assertFalse(result["real_tools_invoked"])
+        self.assertFalse(result["real_shell_used"])
+        self.assertFalse(result["real_filesystem_accessed"])
+        self.assertFalse(result["real_network_requests_sent"])
+        self.assertFalse(result["real_accounts_modified"])
+        self.assertEqual(result["attempt_count"], 4)
+        self.assertEqual(result["blue_team_control"], "PASS")
+        self.assertEqual(result["assessment_result"], "PASS")
+
+        vulnerable = result["vulnerable_agent"]
+        secure = result["secure_agent"]
+
+        self.assertEqual(vulnerable["accepted_count"], 4)
+        self.assertTrue(vulnerable["canary_exposed"])
+        self.assertEqual(len(vulnerable["results"]), 4)
+        self.assertTrue(
+            all(item["accepted"] for item in vulnerable["results"])
+        )
+
+        self.assertEqual(secure["denied_count"], 4)
+        self.assertFalse(secure["canary_exposed"])
+        self.assertEqual(len(secure["results"]), 4)
+        self.assertTrue(
+            all(not item["accepted"] for item in secure["results"])
+        )
+
+        secure_rule_ids = {
+            rule
+            for item in secure["results"]
+            for rule in item["detection_rules"]
+        }
+        self.assertTrue({
+            "AGENT-TOOL-001",
+            "AGENT-TOOL-002",
+            "AGENT-TOOL-003",
+            "AGENT-TOOL-004",
+            "AGENT-ALLOWLIST-001",
+            "AGENT-PERM-001",
+        }.issubset(secure_rule_ids))
+
+        self.assertTrue(body["audit_recorded"])
+        self.assertFalse(body["assessment_created"])
+        self.assertFalse(body["test_run_created"])
+        self.assertFalse(body["finding_created"])
+        self.assertFalse(body["evidence_persisted"])
+
+        audit_count = self.memory.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_log
+            WHERE action = 'ai_security.simulation.executed'
+              AND resource_id = 'AI-003'
+            """
+        ).fetchone()[0]
+        self.assertEqual(
+            audit_count,
+            self.initial_ai003_audit_count + 1,
+        )
+
+        self.assertEqual(
+            self.memory.execute("SELECT COUNT(*) FROM assessments").fetchone()[0],
+            self.initial_assessments,
+        )
+        self.assertEqual(
+            self.memory.execute("SELECT COUNT(*) FROM test_runs").fetchone()[0],
+            self.initial_runs,
+        )
+        self.assertEqual(
+            self.memory.execute("SELECT COUNT(*) FROM findings").fetchone()[0],
+            self.initial_findings,
+        )
+        self.assertEqual(
+            self.memory.execute("SELECT COUNT(*) FROM evidence").fetchone()[0],
+            self.initial_evidence,
+        )
+        self.assertEqual(
+            self.memory.execute("SELECT COUNT(*) FROM security_events").fetchone()[0],
+            self.initial_security_events,
+        )
+        self.assertTrue(
+            all(
+                row["is_enabled"] == 0
+                for row in self.memory.execute(
+                    "SELECT is_enabled FROM target_profiles"
+                )
+            )
+        )
+
+    def test_ai003_enabled_target_is_rejected_without_audit(self):
+        self.memory.execute(
+            """
+            UPDATE target_profiles
+            SET is_enabled = 1
+            WHERE id = ?
+            """,
+            ("target-testgpt-secure-v1",),
+        )
+        self.memory.commit()
+
+        response = self.post_ai003(
+            self.analyst_cookie,
+            self.headers,
+        )
+        self.assertEqual(response.status_code, 409)
+
+        audit_count = self.memory.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_log
+            WHERE action = 'ai_security.simulation.executed'
+              AND resource_id = 'AI-003'
+            """
+        ).fetchone()[0]
+        self.assertEqual(
+            audit_count,
+            self.initial_ai003_audit_count,
+        )
+
+    def test_ai003_repeat_execution_is_deterministic_and_audited(self):
+        first = self.post_ai003(
+            self.analyst_cookie,
+            self.headers,
+        )
+        second = self.post_ai003(
+            self.analyst_cookie,
+            self.headers,
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(
+            first.json()["simulation"],
+            second.json()["simulation"],
+        )
+
+        audit_count = self.memory.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_log
+            WHERE action = 'ai_security.simulation.executed'
+              AND resource_id = 'AI-003'
+            """
+        ).fetchone()[0]
+        self.assertEqual(
+            audit_count,
+            self.initial_ai003_audit_count + 2,
+        )
+
+    def test_ai003_client_cannot_replace_fixed_scenario(self):
+        response = self.client.post(
+            ENDPOINT_AI003,
+            cookies=self.analyst_cookie,
+            headers=self.headers,
+            json={
+                "scenario_id": "attacker-controlled",
+                "attempts": [
+                    {
+                        "tool_name": "arbitrary.real.tool",
+                        "required_permission": "admin",
+                    }
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()["simulation"]
+        self.assertEqual(result["scenario_id"], "AI-003")
+        self.assertEqual(result["attempt_count"], 4)
+        self.assertEqual(result["secure_agent"]["denied_count"], 4)
+
+
     def test_in_memory_database_integrity(self):
         self.assertEqual(
             self.memory.execute("PRAGMA integrity_check").fetchone()[0],

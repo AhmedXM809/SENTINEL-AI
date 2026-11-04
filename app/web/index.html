@@ -452,6 +452,48 @@
                             </button>
                         </div>
                     </section>
+
+                    <section class="assessment-scenario-card ai003-scenario-card">
+                        <div class="assessment-scenario-header">
+                            <div>
+                                <div class="eyebrow">SCENARIO AI-003</div>
+                                <h2>Agent Tool Misuse &amp; Permission Enforcement</h2>
+                                <p>Compare a vulnerable mock agent with a protected mock agent when both receive four fixed synthetic tool requests. The protected agent applies an explicit tool allowlist and required-permission checks.</p>
+                            </div>
+                            <span class="scenario-id-chip">AI-003</span>
+                        </div>
+
+                        <div class="assessment-facts">
+                            <div class="assessment-fact">
+                                <span>Tool requests</span>
+                                <strong>Four fixed synthetic attempts</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Authorization model</span>
+                                <strong>Allowlist + permission checks</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Execution boundary</span>
+                                <strong>In-memory mock agents only</strong>
+                            </div>
+                        </div>
+
+                        <div class="ai003-boundary-note">
+                            <div>
+                                <strong>Simulated tool boundary</strong>
+                                <p>The scenario models a sensitive-record read, a command execution request, an external request, and an access-control change. None of these actions is performed against a real system. No real shell, filesystem, network, or account operations are used.</p>
+                            </div>
+                        </div>
+
+                        <div class="assessment-scenario-footer">
+                            <p>Only the fixed AI-003 scenario can be run. User-supplied tools, commands, URLs, records, and permissions are not accepted. A successful run records one audit event only.</p>
+                            <button id="run-ai003-button" class="primary-button assessment-run-button" type="button">
+                                <span>Run AI-003 simulation</span>
+                                <span class="button-arrow" aria-hidden="true">&#8594;</span>
+                            </button>
+                        </div>
+                    </section>
+
                     <section id="assessment-results" class="assessment-results" hidden aria-live="polite">
                         <div class="assessment-results-heading">
                             <div>
@@ -645,9 +687,101 @@
                             <p>This is a fixed rule-based demonstration, not a real retrieval pipeline, semantic analysis engine, or production guarantee against indirect prompt injection.</p>
                         </section>
                     </section>
+
+                    <section id="ai003-results" class="assessment-results" hidden aria-live="polite">
+                        <div class="assessment-results-heading">
+                            <div>
+                                <div class="eyebrow">EXECUTION REPORT / AI-003</div>
+                                <h2>Agent tool authorization results</h2>
+                                <p class="muted">Four fixed tool requests were evaluated by deterministic in-memory mock agents.</p>
+                            </div>
+                            <span id="ai003-overall-status" class="assessment-outcome">Awaiting execution</span>
+                        </div>
+
+                        <div class="assessment-result-metadata">
+                            <div class="assessment-meta-card">
+                                <span>Execution type</span>
+                                <strong id="ai003-execution-type">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Fixed tool attempts</span>
+                                <strong id="ai003-attempt-count">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Audit record</span>
+                                <strong id="ai003-audit-status">&#8212;</strong>
+                            </div>
+                        </div>
+
+                        <div class="assessment-result-grid">
+                            <article class="simulation-result-card vulnerable-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip vulnerable">VULNERABLE AGENT</span>
+                                        <h3>Unrestricted mock agent</h3>
+                                    </div>
+                                    <span id="ai003-vulnerable-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The vulnerable mock accepts the four unauthorized tool requests in this fixed synthetic scenario.</p>
+                                <div class="result-field">
+                                    <span>Accepted requests</span>
+                                    <strong id="ai003-vulnerable-accepted">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic canary</span>
+                                    <strong id="ai003-vulnerable-canary">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Tool decisions and detection rules</span>
+                                    <pre id="ai003-vulnerable-details" class="simulation-output ai003-attempt-output">No result yet.</pre>
+                                </div>
+                            </article>
+
+                            <article class="simulation-result-card secure-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip secure">PROTECTED AGENT</span>
+                                        <h3>Allowlist-enforced mock agent</h3>
+                                    </div>
+                                    <span id="ai003-secure-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The protected mock denies tool requests unless both the tool is explicitly allowed and its required permission is present.</p>
+                                <div class="result-field">
+                                    <span>Denied requests</span>
+                                    <strong id="ai003-secure-denied">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic canary</span>
+                                    <strong id="ai003-secure-canary">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Tool decisions and detection rules</span>
+                                    <pre id="ai003-secure-details" class="simulation-output ai003-attempt-output">No result yet.</pre>
+                                </div>
+                            </article>
+                        </div>
+
+                        <section class="assessment-evaluation-card ai003-evaluation-card">
+                            <div class="eyebrow">BLUE TEAM EVALUATION</div>
+                            <h3>Agent authorization controls</h3>
+                            <div class="evaluation-grid ai003-evaluation-grid">
+                                <div><span>Tool allowlist enforcement</span><strong id="ai003-allowlist-status">&#8212;</strong></div>
+                                <div><span>Required permission checks</span><strong id="ai003-permission-status">&#8212;</strong></div>
+                                <div><span>Real-world tool operations</span><strong id="ai003-real-operations-status">&#8212;</strong></div>
+                                <div><span>Blue Team control</span><strong id="ai003-controls-status">&#8212;</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="assessment-limitations">
+                            <strong>Interpretation and limitations</strong>
+                            <p id="ai003-limitations">The scenario limitations will appear here after execution.</p>
+                            <p>This is a deterministic synthetic demonstration. It does not execute real tools or establish that a production AI agent is secure.</p>
+                        </section>
+                    </section>
+
                     <footer class="workspace-footer assessment-footer">
                         <span>SENTINEL AI / CONTROLLED ASSESSMENT WORKSPACE</span>
-                        <span>AI-001 + AI-002 / DETERMINISTIC TRAINING</span>
+                        <span>AI-001 + AI-002 + AI-003 / DETERMINISTIC TRAINING</span>
                     </footer>
                 </section>
             </div>
