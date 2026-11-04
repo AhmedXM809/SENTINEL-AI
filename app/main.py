@@ -1,10 +1,15 @@
 import sqlite3
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.db.connection import get_connection
 from app.authentication.routes import router as authentication_router
+from app.api.targets import router as targets_router
+from app.api.assessments import router as assessments_router
 
 app = FastAPI(
     title="SENTINEL AI",
@@ -17,15 +22,13 @@ app.add_middleware(
     allowed_hosts=["127.0.0.1", "localhost"],
 )
 app.include_router(authentication_router)
+app.include_router(targets_router)
+app.include_router(assessments_router)
 
 
-@app.get("/", tags=["System"])
-async def root() -> dict[str, str]:
-    return {
-        "service": "SENTINEL AI API",
-        "version": app.version,
-        "message": "API is running.",
-    }
+@app.get("/", tags=["System"], include_in_schema=False)
+async def root() -> RedirectResponse:
+    return RedirectResponse(url="/app/", status_code=307)
 
 
 @app.get("/health", tags=["System"])
@@ -91,3 +94,38 @@ def readiness() -> dict[str, str]:
         "tables": str(table_count),
         "foreign_keys": "enabled",
     }
+@app.middleware("http")
+async def add_web_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()",
+    )
+
+    if request.url.path == "/" or request.url.path.startswith("/app"):
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "base-uri 'self'; "
+            "form-action 'self'; "
+            "frame-ancestors 'none'; "
+            "object-src 'none'; "
+            "script-src 'self'; "
+            "style-src 'self'; "
+            "img-src 'self' data:; "
+            "connect-src 'self'",
+        )
+
+    return response
+
+
+WEB_DIRECTORY = Path(__file__).resolve().parent / "web"
+
+app.mount(
+    "/app",
+    StaticFiles(directory=str(WEB_DIRECTORY), html=True),
+    name="web",
+)

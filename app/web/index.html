@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#081321">
+    <meta name="description" content="SENTINEL AI Blue Team security workspace">
+    <title>SENTINEL AI | Blue Team Defense Center</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+</head>
+<body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main id="auth-screen" class="auth-layout">
+        <section class="auth-intro">
+            <a class="brand" href="/" aria-label="SENTINEL AI home">
+                <span class="brand-mark"><span></span><span></span><span></span></span>
+                <span class="brand-name">SENTINEL<span>AI</span></span>
+            </a>
+
+            <div class="intro-copy">
+                <div class="eyebrow"><span class="status-dot"></span> BLUE TEAM SECURITY PLATFORM</div>
+                <h1>Defend the intelligence.<br><span>Secure the system.</span></h1>
+                <p class="intro-description">
+                    A controlled environment for evaluating AI security,
+                    validating defensive controls, and investigating evidence.
+                </p>
+
+                <div class="intro-points">
+                    <div><span class="point-icon">01</span><span>Validate AI security controls</span></div>
+                    <div><span class="point-icon">02</span><span>Investigate findings and evidence</span></div>
+                    <div><span class="point-icon">03</span><span>Improve defensive posture</span></div>
+                </div>
+            </div>
+
+            <div class="intro-footer">
+                <span>LOCAL SECURITY WORKSPACE</span>
+                <span>VERSION 0.1.0</span>
+            </div>
+        </section>
+
+        <section class="auth-panel">
+            <div class="panel-topline">
+                <span class="mobile-brand">SENTINEL<span>AI</span></span>
+                <span class="local-indicator"><span class="status-dot"></span> LOCAL INSTANCE</span>
+            </div>
+
+            <div class="auth-card">
+                <div id="login-view">
+                    <div class="card-symbol"><span class="symbol-shield">S</span></div>
+                    <div class="eyebrow">SECURE ACCESS</div>
+                    <h2>Welcome back</h2>
+                    <p class="muted">Sign in to your Blue Team workspace.</p>
+
+                    <form id="login-form" autocomplete="on">
+                        <label for="username">Username</label>
+                        <input id="username" name="username" type="text"
+                               maxlength="64" autocomplete="username"
+                               placeholder="Your administrator username" required>
+
+                        <div class="field-heading">
+                            <label for="password">Password</label>
+                            <span class="field-note">Protected sign-in</span>
+                        </div>
+                        <input id="password" name="password" type="password"
+                               autocomplete="current-password"
+                               placeholder="Enter your password" required>
+
+                        <div id="login-feedback" class="feedback" role="alert" aria-live="polite" hidden></div>
+
+                        <button id="login-button" class="primary-button" type="submit">
+                            <span>Continue securely</span><span class="button-arrow">→</span>
+                        </button>
+                    </form>
+                    <p class="security-note"><span>◆</span> Your session is protected by server-side authentication.</p>
+                </div>
+
+                <div id="mfa-view" hidden>
+                    <div class="card-symbol"><span class="symbol-shield">2F</span></div>
+                    <div class="eyebrow">SECOND FACTOR REQUIRED</div>
+                    <h2>Verify it's you</h2>
+                    <p class="muted">Enter the current code from your authenticator app.</p>
+
+                    <form id="mfa-form" autocomplete="off">
+                        <label id="mfa-code-label" for="mfa-code">Authenticator code</label>
+                        <input id="mfa-code" name="code" type="text"
+                               inputmode="numeric" autocomplete="one-time-code"
+                               autocapitalize="off" spellcheck="false"
+                               maxlength="64" placeholder="000000" required>
+
+                        <button id="recovery-toggle" class="text-button" type="button">
+                            Use a recovery code instead
+                        </button>
+
+                        <div id="mfa-feedback" class="feedback" role="alert" aria-live="polite" hidden></div>
+
+                        <button id="mfa-button" class="primary-button" type="submit">
+                            <span>Verify and sign in</span><span class="button-arrow">→</span>
+                        </button>
+                    </form>
+                    <p class="security-note"><span>◆</span> This verification challenge expires after five minutes.</p>
+                    <button id="back-to-login" class="back-button" type="button">← Back to sign in</button>
+                </div>
+
+                <div id="auth-loading" class="loading-state" hidden>
+                    <span class="loader"></span>
+                    <p>Checking your secure session…</p>
+                </div>
+            </div>
+
+            <div class="panel-footer">
+                <span>AUTHORIZED USERS ONLY</span>
+                <span>LOCALHOST DEPLOYMENT</span>
+            </div>
+        </section>
+    </main>
+
+    <main id="workspace" class="workspace" hidden>
+        <aside class="sidebar">
+            <a class="brand sidebar-brand" href="/app/" aria-label="SENTINEL AI overview">
+                <span class="brand-mark"><span></span><span></span><span></span></span>
+                <span class="brand-name">SENTINEL<span>AI</span></span>
+            </a>
+
+            <div class="sidebar-label">DEFENSE WORKSPACE</div>
+            <nav class="side-navigation" aria-label="Main navigation">
+                <a id="overview-nav" class="nav-link active" href="#overview" aria-current="page">
+                    <span class="nav-icon">◈</span><span>Overview</span>
+                </a>
+                <div class="nav-section-label">BLUE TEAM</div>
+                <div class="nav-link planned"><span class="nav-icon">⬡</span><span>Security Controls</span><small>PLANNED</small></div>
+                <div class="nav-link planned"><span class="nav-icon">◎</span><span>Threat Detection</span><small>PLANNED</small></div>
+                <a id="assessments-nav" class="nav-link" href="#assessments"><span class="nav-icon">◎</span><span>Assessments</span></a>
+                <a id="targets-nav" class="nav-link" href="#targets"><span class="nav-icon">▣</span><span>AI Targets</span></a>
+                <div class="nav-section-label">INVESTIGATION</div>
+                <div class="nav-link planned"><span class="nav-icon">⌘</span><span>Findings</span><small>PLANNED</small></div>
+                <div class="nav-link planned"><span class="nav-icon">▤</span><span>Evidence</span><small>PLANNED</small></div>
+                <div class="nav-link planned"><span class="nav-icon">◫</span><span>Risk &amp; Reports</span><small>PLANNED</small></div>
+                <div class="nav-link planned"><span class="nav-icon">≋</span><span>Audit Trail</span><small>PLANNED</small></div>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="environment-card">
+                    <span class="environment-dot"></span>
+                    <div><strong>Isolated lab</strong><small>LOCAL ENVIRONMENT</small></div>
+                </div>
+                <button id="logout-button" class="logout-button" type="button">
+                    <span>↪</span> Sign out
+                </button>
+            </div>
+        </aside>
+
+        <section class="workspace-main">
+            <header class="topbar">
+                <div class="mobile-brand">SENTINEL<span>AI</span></div>
+                <div class="breadcrumb">WORKSPACE <span>/</span> <strong>OVERVIEW</strong></div>
+                <div class="topbar-right">
+                    <span class="topbar-local"><span class="status-dot"></span> LOCAL</span>
+                    <span class="user-avatar" id="user-avatar">A</span>
+                    <div class="user-meta">
+                        <strong id="display-username">Analyst</strong>
+                        <small id="display-role">AUTHENTICATED USER</small>
+                    </div>
+                </div>
+            </header>
+
+            <div class="workspace-content">
+                <div id="overview-page">
+                <section class="welcome-row">
+                    <div>
+                        <div class="eyebrow">BLUE TEAM COMMAND CENTER</div>
+                        <h1>Defense overview<span class="title-period">.</span></h1>
+                        <p class="muted">Your workspace for AI security validation and defensive assurance.</p>
+                    </div>
+                    <div class="access-badge"><span class="status-dot"></span> AUTHENTICATED</div>
+                </section>
+
+                <section class="platform-banner">
+                    <div class="banner-copy">
+                        <div class="eyebrow">SENTINEL AI · DEFENSE FIRST</div>
+                        <h2>Make AI systems<br><span>safer by design.</span></h2>
+                        <p>Validate safeguards, examine controlled test results, and strengthen your AI security posture.</p>
+                    </div>
+                    <div class="banner-art" aria-hidden="true">
+                        <div class="orbit orbit-one"></div>
+                        <div class="orbit orbit-two"></div>
+                        <div class="orbit orbit-three"></div>
+                        <div class="core-shield">S</div>
+                        <div class="orbit-point"></div>
+                    </div>
+                    <div class="banner-caption">CONTROLLED TESTING <span>·</span> SYNTHETIC DATA <span>·</span> HUMAN OVERSIGHT</div>
+                </section>
+
+                <section class="section-heading">
+                    <div><div class="eyebrow">SYSTEM FOUNDATION</div><h2>Platform status</h2></div>
+                    <span class="section-note">LIVE CHECKS · NOT TEST RESULTS</span>
+                </section>
+
+                <section class="status-grid">
+                    <article class="status-card">
+                        <div class="status-card-top"><span class="status-icon cyan">⌘</span><span class="mini-tag">LIVE</span></div>
+                        <h3>API service</h3>
+                        <div id="api-status" class="status-value">Checking…</div>
+                        <p id="api-detail">Checking backend readiness.</p>
+                    </article>
+                    <article class="status-card">
+                        <div class="status-card-top"><span class="status-icon green">◇</span><span class="mini-tag">LIVE</span></div>
+                        <h3>Database</h3>
+                        <div id="database-status" class="status-value">Checking…</div>
+                        <p id="database-detail">Checking schema and connectivity.</p>
+                    </article>
+                    <article class="status-card">
+                        <div class="status-card-top"><span class="status-icon violet">◈</span><span class="mini-tag">SECURITY</span></div>
+                        <h3>Access control</h3>
+                        <div class="status-value positive">Authenticated</div>
+                        <p>Server-side session and role verification.</p>
+                    </article>
+                </section>
+
+                <section class="section-heading modules-heading">
+                    <div><div class="eyebrow">BLUE TEAM TOOLKIT</div><h2>Defense modules</h2></div>
+                    <span class="section-note">IMPLEMENTATION ROADMAP</span>
+                </section>
+
+                <section class="module-grid">
+                    <article class="module-card">
+                        <div class="module-icon cyan">⬡</div>
+                        <div class="module-status">PLANNED</div>
+                        <h3>Security Controls</h3>
+                        <p>Input validation, output inspection, policy enforcement, and agent permissions.</p>
+                        <span class="module-link">Defense engine <span>↗</span></span>
+                    </article>
+                    <a id="assessments-module-card" class="module-card assessment-module-link" href="#assessments">
+                        <div class="module-icon blue">◎</div>
+                        <div class="module-status">AVAILABLE</div>
+                        <h3>AI Assessments</h3>
+                        <p>Run the controlled AI-001 prompt-injection training simulation against isolated mock targets.</p>
+                        <span class="module-link">Open assessment workspace <span>↗</span></span>
+                    </a>
+                    <article class="module-card">
+                        <div class="module-icon violet">▣</div>
+                        <div class="module-status">PLANNED</div>
+                        <h3>AI Test Targets</h3>
+                        <p>Compare a deliberately vulnerable training target with a protected target.</p>
+                        <a id="open-targets-link" class="module-link" href="#targets">Target profiles <span>↗</span></a>
+                    </article>
+                    <article class="module-card">
+                        <div class="module-icon amber">⌕</div>
+                        <div class="module-status">PLANNED</div>
+                        <h3>Findings &amp; Investigation</h3>
+                        <p>Review security findings, confidence, supporting evidence, and mitigation guidance.</p>
+                        <span class="module-link">Investigation workspace <span>↗</span></span>
+                    </article>
+                    <article class="module-card">
+                        <div class="module-icon green">▤</div>
+                        <div class="module-status">PLANNED</div>
+                        <h3>Evidence Integrity</h3>
+                        <p>Track evidence metadata, collection timestamps, and SHA-256 integrity checks.</p>
+                        <span class="module-link">Evidence store <span>↗</span></span>
+                    </article>
+                    <article class="module-card">
+                        <div class="module-icon cyan">◫</div>
+                        <div class="module-status">PLANNED</div>
+                        <h3>Risk &amp; Reporting</h3>
+                        <p>Prioritize validated findings and produce assessment reports.</p>
+                        <span class="module-link">Risk engine <span>↗</span></span>
+                    </article>
+                </section>
+
+                <section class="roadmap-panel">
+                    <div class="roadmap-symbol">✓</div>
+                    <div>
+                        <div class="eyebrow">CURRENT MILESTONE</div>
+                        <h3>Secure access foundation established</h3>
+                        <p>Authentication, MFA, server-side sessions, role checks, and database readiness are implemented. The assessment and defense engines are the next development stages.</p>
+                    </div>
+                    <span class="milestone-badge">FOUNDATION</span>
+                </section>
+
+                <footer class="workspace-footer">
+                    <span>SENTINEL AI <span class="footer-separator">/</span> AI SECURITY TESTING &amp; DEFENSE PLATFORM</span>
+                    <span>LOCAL INSTANCE · V0.1.0</span>
+                </footer>
+                </div>
+
+                <section id="targets-page" class="targets-page" hidden>
+                    <div class="targets-page-heading">
+                        <div>
+                            <div class="eyebrow">BLUE TEAM · TARGET MANAGEMENT</div>
+                            <h1>AI Targets<span class="title-period">.</span></h1>
+                            <p class="muted">Inspect approved isolated AI test profiles and their model configuration.</p>
+                        </div>
+                        <div class="targets-actions">
+                            <button id="refresh-targets-button" class="secondary-button" type="button">↻ Refresh</button>
+                            <button id="initialize-targets-button" class="primary-button initialize-button" type="button" hidden>
+                                <span>Initialize standard targets</span><span class="button-arrow">→</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="targets-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+                    <section class="targets-summary">
+                        <article class="status-card">
+                            <div class="status-card-top"><span class="status-icon cyan">▣</span><span class="mini-tag">INVENTORY</span></div>
+                            <h3>Target profiles</h3>
+                            <div id="target-count" class="status-value">—</div>
+                            <p>Approved profile records in the local database.</p>
+                        </article>
+                        <article class="status-card">
+                            <div class="status-card-top"><span class="status-icon violet">◇</span><span class="mini-tag">MODEL</span></div>
+                            <h3>Model profiles</h3>
+                            <div id="model-count" class="status-value">—</div>
+                            <p>Configured model adapters available to the platform.</p>
+                        </article>
+                        <article class="status-card">
+                            <div class="status-card-top"><span class="status-icon green">◈</span><span class="mini-tag">ISOLATION</span></div>
+                            <h3>Execution state</h3>
+                            <div class="status-value positive">Not running</div>
+                            <p>Profile initialization does not execute assessments.</p>
+                        </article>
+                    </section>
+
+                    <div class="section-heading targets-section-heading">
+                        <div><div class="eyebrow">ISOLATED TEST PROFILES</div><h2>Target inventory</h2></div>
+                        <span class="section-note">ALL NEW TARGETS START DISABLED</span>
+                    </div>
+
+                    <div id="targets-empty" class="targets-empty" hidden>
+                        <div class="empty-symbol">▣</div>
+                        <h3>No target profiles initialized</h3>
+                        <p>The standard isolated test profiles have not yet been created.</p>
+                        <p class="empty-note">An administrator can initialize the two approved profiles. No tests will run during setup.</p>
+                    </div>
+
+                    <div id="targets-list" class="target-grid"></div>
+
+                    <div class="section-heading targets-section-heading">
+                        <div><div class="eyebrow">MODEL ADAPTER</div><h2>Model profiles</h2></div>
+                        <span class="section-note">DETERMINISTIC MOCK FIRST</span>
+                    </div>
+
+                    <div id="models-empty" class="targets-empty compact-empty" hidden>
+                        <p>No model profiles have been initialized.</p>
+                    </div>
+
+                    <div id="models-list" class="model-grid"></div>
+
+                    <div class="isolation-note">
+                        <span class="note-icon">◇</span>
+                        <div>
+                            <strong>Isolation and safety boundary</strong>
+                            <p>These are database profiles only. The initial deterministic mock is restricted to synthetic data and has no shell, filesystem, or external-network access. Creating profiles does not enable targets, execute tests, or contact external AI services.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="assessments-page" class="assessments-page" hidden>
+                    <div class="targets-page-heading">
+                        <div>
+                            <div class="eyebrow">BLUE TEAM / CONTROLLED VALIDATION</div>
+                            <h1>AI Security Assessments<span class="title-period">.</span></h1>
+                            <p class="muted">Run a fixed, deterministic training scenario against isolated mock targets.</p>
+                        </div>
+                        <div class="assessment-heading-tag">LOCAL SIMULATION ONLY</div>
+                    </div>
+
+                    <div id="assessment-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+                    <section class="assessment-safety-banner">
+                        <span class="assessment-safety-icon" aria-hidden="true">!</span>
+                        <div>
+                            <strong>Controlled simulation boundary</strong>
+                            <p>This scenario uses synthetic input and a deterministic local training engine. It does not call an external AI provider, enable target profiles, or persist assessment results. A successful execution adds one audit-log entry.</p>
+                        </div>
+                    </section>
+
+                    <section class="assessment-scenario-card">
+                        <div class="assessment-scenario-header">
+                            <div>
+                                <div class="eyebrow">SCENARIO AI-001</div>
+                                <h2>Direct Prompt Injection Detection</h2>
+                                <p>Compare a deliberately vulnerable mock target with a protected mock target when both receive the same fixed synthetic test input.</p>
+                            </div>
+                            <span class="scenario-id-chip">AI-001</span>
+                        </div>
+
+                        <div class="assessment-facts">
+                            <div class="assessment-fact">
+                                <span>Execution engine</span>
+                                <strong>Deterministic mock</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Input classification</span>
+                                <strong>Synthetic / public</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Target activation</span>
+                                <strong>Disabled profiles only</strong>
+                            </div>
+                        </div>
+
+                        <div class="assessment-scenario-footer">
+                            <p>Only the fixed AI-001 scenario can be run from this page. User-supplied prompts and target selection are not accepted.</p>
+                            <button id="run-ai001-button" class="primary-button assessment-run-button" type="button">
+                                <span>Run AI-001 simulation</span>
+                                <span class="button-arrow" aria-hidden="true">→</span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section id="assessment-results" class="assessment-results" hidden aria-live="polite">
+                        <div class="assessment-results-heading">
+                            <div>
+                                <div class="eyebrow">EXECUTION REPORT</div>
+                                <h2>Simulation results</h2>
+                                <p class="muted">The outputs below are from the deterministic training engine, not a live AI model.</p>
+                            </div>
+                            <span id="ai001-overall-status" class="assessment-outcome">Awaiting execution</span>
+                        </div>
+
+                        <div class="assessment-result-metadata">
+                            <div class="assessment-meta-card">
+                                <span>Execution type</span>
+                                <strong id="ai001-execution-type">—</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Input classification</span>
+                                <strong id="ai001-input-classification">—</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Audit record</span>
+                                <strong id="ai001-audit-status">—</strong>
+                            </div>
+                        </div>
+
+                        <div class="assessment-result-grid">
+                            <article class="simulation-result-card vulnerable-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip vulnerable">VULNERABLE TARGET</span>
+                                        <h3>TestGPT-Vulnerable</h3>
+                                    </div>
+                                    <span id="ai001-vulnerable-state" class="result-state">—</span>
+                                </div>
+                                <p class="result-description">The training target does not apply the simulated defensive control.</p>
+                                <div class="result-field">
+                                    <span>Simulated output</span>
+                                    <pre id="ai001-vulnerable-output" class="simulation-output">No result yet.</pre>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic disclosure</span>
+                                    <strong id="ai001-vulnerable-disclosure">—</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Detection rule IDs</span>
+                                    <p id="ai001-vulnerable-rules" class="result-rules">—</p>
+                                </div>
+                            </article>
+
+                            <article class="simulation-result-card secure-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip secure">PROTECTED TARGET</span>
+                                        <h3>TestGPT-Secure</h3>
+                                    </div>
+                                    <span id="ai001-secure-state" class="result-state">—</span>
+                                </div>
+                                <p class="result-description">The training target applies its deterministic input policy.</p>
+                                <div class="result-field">
+                                    <span>Simulated output</span>
+                                    <pre id="ai001-secure-output" class="simulation-output">No result yet.</pre>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic disclosure</span>
+                                    <strong id="ai001-secure-disclosure">—</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Detection rule IDs</span>
+                                    <p id="ai001-secure-rules" class="result-rules">—</p>
+                                </div>
+                            </article>
+                        </div>
+
+                        <section class="assessment-evaluation-card">
+                            <div class="eyebrow">BLUE TEAM EVALUATION</div>
+                            <h3>Control evaluation</h3>
+                            <div class="evaluation-grid">
+                                <div><span>Injection signature</span><strong id="ai001-injection-status">—</strong></div>
+                                <div><span>Protected target blocked</span><strong id="ai001-block-status">—</strong></div>
+                                <div><span>Blue Team control</span><strong id="ai001-controls-status">—</strong></div>
+                                <div><span>Protected-target disclosure</span><strong id="ai001-disclosure-status">—</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="assessment-limitations">
+                            <strong>Interpretation and limitations</strong>
+                            <p id="ai001-limitations">The scenario limitations will appear here after execution.</p>
+                            <p>Passing this deterministic training scenario does not establish protection against all prompt-injection techniques or prove the behavior of a production AI model.</p>
+                        </section>
+                    </section>
+
+                    <footer class="workspace-footer assessment-footer">
+                        <span>SENTINEL AI / CONTROLLED ASSESSMENT WORKSPACE</span>
+                        <span>AI-001 / DETERMINISTIC TRAINING</span>
+                    </footer>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <div id="global-feedback" class="global-feedback" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
