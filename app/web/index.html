@@ -411,6 +411,47 @@
                         </div>
                     </section>
 
+                    <section class="assessment-scenario-card ai002-scenario-card">
+                        <div class="assessment-scenario-header">
+                            <div>
+                                <div class="eyebrow">SCENARIO AI-002</div>
+                                <h2>Indirect Prompt Injection Detection</h2>
+                                <p>Inspect a fixed synthetic retrieved document containing an embedded instruction. Compare how vulnerable and protected mock targets handle untrusted retrieved content.</p>
+                            </div>
+                            <span class="scenario-id-chip">AI-002</span>
+                        </div>
+
+                        <div class="assessment-facts">
+                            <div class="assessment-fact">
+                                <span>Retrieval source</span>
+                                <strong>Synthetic document</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Trust boundary</span>
+                                <strong>Retrieved content is untrusted</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Execution engine</span>
+                                <strong>Deterministic RAG mock</strong>
+                            </div>
+                        </div>
+
+                        <div class="rag-document-note">
+                            <div>
+                                <span>FIXED DOCUMENT ID</span>
+                                <strong>SYNTHETIC-DOC-RAG-002</strong>
+                            </div>
+                            <p>Document content is held inside the training engine and is not returned by the API. No real documents or external retrieval sources are used.</p>
+                        </div>
+
+                        <div class="assessment-scenario-footer">
+                            <p>Only the fixed AI-002 synthetic retrieval scenario can be run. No user-supplied documents, URLs, or prompts are accepted.</p>
+                            <button id="run-ai002-button" class="primary-button assessment-run-button" type="button">
+                                <span>Run AI-002 simulation</span>
+                                <span class="button-arrow" aria-hidden="true">&#8594;</span>
+                            </button>
+                        </div>
+                    </section>
                     <section id="assessment-results" class="assessment-results" hidden aria-live="polite">
                         <div class="assessment-results-heading">
                             <div>
@@ -502,9 +543,111 @@
                         </section>
                     </section>
 
+                    <section id="ai002-results" class="assessment-results" hidden aria-live="polite">
+                        <div class="assessment-results-heading">
+                            <div>
+                                <div class="eyebrow">EXECUTION REPORT / AI-002</div>
+                                <h2>Indirect injection results</h2>
+                                <p class="muted">The retrieved document is synthetic and fixed. Its raw content is not included in the API response.</p>
+                            </div>
+                            <span id="ai002-overall-status" class="assessment-outcome">Awaiting execution</span>
+                        </div>
+
+                        <div class="assessment-result-metadata">
+                            <div class="assessment-meta-card">
+                                <span>Execution type</span>
+                                <strong id="ai002-execution-type">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Retrieved document</span>
+                                <strong id="ai002-document-id">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Audit record</span>
+                                <strong id="ai002-audit-status">&#8212;</strong>
+                            </div>
+                        </div>
+
+                        <section class="assessment-evaluation-card rag-inspection-card">
+                            <div class="eyebrow">RETRIEVED DOCUMENT INSPECTION</div>
+                            <h3>Untrusted instruction signatures</h3>
+                            <div class="evaluation-grid rag-inspection-grid">
+                                <div><span>Indirect override</span><strong id="ai002-override-status">&#8212;</strong></div>
+                                <div><span>Role escalation</span><strong id="ai002-role-status">&#8212;</strong></div>
+                                <div><span>Synthetic data exfiltration</span><strong id="ai002-exfiltration-status">&#8212;</strong></div>
+                                <div><span>Raw document returned</span><strong id="ai002-document-content-status">&#8212;</strong></div>
+                            </div>
+                            <p id="ai002-inspection-rules" class="rag-rule-list">No inspection results yet.</p>
+                        </section>
+
+                        <div class="assessment-result-grid">
+                            <article class="simulation-result-card vulnerable-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip vulnerable">VULNERABLE TARGET</span>
+                                        <h3>TestGPT-Vulnerable</h3>
+                                    </div>
+                                    <span id="ai002-vulnerable-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The vulnerable mock treats the embedded retrieved instruction as actionable.</p>
+                                <div class="result-field">
+                                    <span>Simulated output</span>
+                                    <pre id="ai002-vulnerable-output" class="simulation-output">No result yet.</pre>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic disclosure</span>
+                                    <strong id="ai002-vulnerable-disclosure">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Target-applied rule IDs</span>
+                                    <p id="ai002-vulnerable-rules" class="result-rules">&#8212;</p>
+                                </div>
+                            </article>
+
+                            <article class="simulation-result-card secure-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip secure">PROTECTED TARGET</span>
+                                        <h3>TestGPT-Secure</h3>
+                                    </div>
+                                    <span id="ai002-secure-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The protected mock treats retrieved content as untrusted and quarantines the embedded instruction.</p>
+                                <div class="result-field">
+                                    <span>Simulated output</span>
+                                    <pre id="ai002-secure-output" class="simulation-output">No result yet.</pre>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic disclosure</span>
+                                    <strong id="ai002-secure-disclosure">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Applied rule IDs</span>
+                                    <p id="ai002-secure-rules" class="result-rules">&#8212;</p>
+                                </div>
+                            </article>
+                        </div>
+
+                        <section class="assessment-evaluation-card">
+                            <div class="eyebrow">BLUE TEAM EVALUATION</div>
+                            <h3>RAG trust-boundary evaluation</h3>
+                            <div class="evaluation-grid">
+                                <div><span>Indirect injection detected</span><strong id="ai002-injection-status">&#8212;</strong></div>
+                                <div><span>Protected target blocked</span><strong id="ai002-block-status">&#8212;</strong></div>
+                                <div><span>Document treated as untrusted</span><strong id="ai002-untrusted-status">&#8212;</strong></div>
+                                <div><span>Blue Team control</span><strong id="ai002-controls-status">&#8212;</strong></div>
+                            </div>
+                        </section>
+
+                        <section class="assessment-limitations">
+                            <strong>Interpretation and limitations</strong>
+                            <p id="ai002-limitations">The scenario limitations will appear here after execution.</p>
+                            <p>This is a fixed rule-based demonstration, not a real retrieval pipeline, semantic analysis engine, or production guarantee against indirect prompt injection.</p>
+                        </section>
+                    </section>
                     <footer class="workspace-footer assessment-footer">
                         <span>SENTINEL AI / CONTROLLED ASSESSMENT WORKSPACE</span>
-                        <span>AI-001 / DETERMINISTIC TRAINING</span>
+                        <span>AI-001 + AI-002 / DETERMINISTIC TRAINING</span>
                     </footer>
                 </section>
             </div>

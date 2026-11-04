@@ -44,6 +44,55 @@ class TestAI001FrontendContract(unittest.TestCase):
             JS,
             r'if\s*\(\s*!permissions\.includes\("assessments\.execute"\)\s*\|\|\s*!permissions\.includes\("targets\.read"\)',
         )
+    def test_ai002_scenario_and_results_markup_exist(self):
+        required = (
+            "run-ai002-button",
+            "ai002-results",
+            "ai002-overall-status",
+            "ai002-document-id",
+            "ai002-inspection-rules",
+            "ai002-vulnerable-output",
+            "ai002-secure-output",
+            "ai002-controls-status",
+            "ai002-limitations",
+        )
+        for element_id in required:
+            with self.subTest(element_id=element_id):
+                self.assertEqual(
+                    len(re.findall(rf'id="{re.escape(element_id)}"', HTML)),
+                    1,
+                )
+
+    def test_ai002_result_panel_starts_hidden(self):
+        self.assertRegex(
+            HTML,
+            r'<section id="ai002-results" class="assessment-results" hidden aria-live="polite">',
+        )
+
+    def test_ai002_api_route_matches_frontend_path(self):
+        self.assertIn('@router.post("/simulations/AI-002/run")', API)
+        self.assertIn('"/api/v1/simulations/AI-002/run"', JS)
+
+    def test_ai002_run_handler_uses_csrf_confirmation_and_permissions(self):
+        start = JS.index("async function runAI002()")
+        end = JS.index('byId("run-ai002-button").addEventListener', start)
+        handler = JS[start:end]
+        self.assertIn("window.confirm(", handler)
+        self.assertIn("csrf: true", handler)
+        self.assertIn('method: "POST"', handler)
+        self.assertIn('permissions.includes("assessments.execute")', handler)
+        self.assertIn('permissions.includes("targets.read")', handler)
+
+    def test_ai002_outputs_are_rendered_as_text(self):
+        self.assertIn('byId("ai002-vulnerable-output").textContent', JS)
+        self.assertIn('byId("ai002-secure-output").textContent', JS)
+        self.assertIn('byId("ai002-inspection-rules").textContent', JS)
+        self.assertNotIn("innerHTML", JS)
+        self.assertNotIn("insertAdjacentHTML", JS)
+
+    def test_ai002_raw_document_instruction_is_not_in_html(self):
+        self.assertNotIn("UNTRUSTED DOCUMENT INSTRUCTION", HTML)
+        self.assertIn("Document content is held inside the training engine", HTML)
     def test_user_confirmation_is_required(self):
         self.assertIn("window.confirm(", JS)
         self.assertIn('id="run-ai001-button"', HTML)

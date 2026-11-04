@@ -69,7 +69,7 @@ def require_execute_permission(user: AuthenticatedUser) -> None:
         )
 
 
-def _audit_simulation(connection, user_id: str) -> None:
+def _audit_simulation(connection, user_id: str, scenario_id: str) -> None:
     now = (
         datetime.now(timezone.utc)
         .isoformat(timespec="seconds")
@@ -94,7 +94,7 @@ def _audit_simulation(connection, user_id: str) -> None:
             user_id,
             "ai_security.simulation.executed",
             "simulation",
-            "AI-001",
+            scenario_id,
             "success",
             now,
         ),
@@ -251,7 +251,84 @@ def execute_ai_001(
                 )
 
             # Record only the execution audit event.
-            _audit_simulation(connection, user.user_id)
+            _audit_simulation(connection, user.user_id, "AI-001")
+
+    except HTTPException:
+        raise
+    except sqlite3.Error:
+        raise HTTPException(
+            status_code=503,
+            detail="The simulation could not access its local configuration.",
+        ) from None
+
+    return {
+        "simulation": result,
+        "audit_recorded": True,
+        "assessment_created": False,
+        "test_run_created": False,
+        "finding_created": False,
+        "evidence_persisted": False,
+    }
+
+@router.post("/simulations/AI-002/run")
+def execute_ai_002(
+    request: Request,
+    response: Response,
+    session_token: str | None = Cookie(
+        default=None,
+        alias=SESSION_COOKIE_NAME,
+    ),
+    csrf_token: str | None = Header(
+        default=None,
+        alias="X-CSRF-Token",
+    ),
+    user: AuthenticatedUser = Depends(get_simulation_user),
+    auth_service: LoginService = Depends(get_auth_service),
+) -> dict:
+    """Execute fixed AI-002 in memory; only its audit event is persisted."""
+
+    require_same_origin(request)
+    set_no_store(response)
+
+    if (
+        not session_token
+        or not csrf_token
+        or not auth_service.validate_csrf(
+            session_token,
+            csrf_token,
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="CSRF validation failed.",
+        )
+
+    require_execute_permission(user)
+
+    try:
+        with get_connection() as connection:
+            # Reuse the exact approved disabled-target and mock-model
+            # preflight used by AI-001.
+            _verify_training_profiles(connection)
+
+            # The document and query are fixed inside the engine.
+            # No request-supplied document or prompt is accepted.
+            from app.core.ai002_indirect import run_ai_002
+
+            result = run_ai_002()
+
+            if result["evaluation"]["blue_team_control"] != "PASS":
+                raise HTTPException(
+                    status_code=500,
+                    detail="The AI-002 defensive evaluation did not pass.",
+                )
+
+            # Record only the scenario-specific audit event.
+            _audit_simulation(
+                connection,
+                user.user_id,
+                "AI-002",
+            )
 
     except HTTPException:
         raise
