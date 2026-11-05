@@ -3,7 +3,7 @@
 
 **Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
-**Project status:** Active local security-testing prototype
+**Project status:** Local security-testing prototype
 **Application version:** 0.1.0
 **Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
 **Deployment:** Localhost-only
@@ -54,7 +54,21 @@ The initial roles are:
 - **Security Analyst:** authorized security testing.
 - **Auditor:** read-only review permissions.
 
-MFA encryption uses the `SENTINEL_MFA_ENCRYPTION_KEY` environment variable. Keep the same key securely across restarts. Never commit it.
+MFA encryption uses the `SENTINEL_MFA_ENCRYPTION_KEY` environment variable.
+
+For a fresh installation, generate a valid Fernet key:
+
+```powershell
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode('ascii'))"
+```
+
+For the current PowerShell session, set the generated key before starting the application:
+
+```powershell
+$env:SENTINEL_MFA_ENCRYPTION_KEY = "PASTE_YOUR_GENERATED_KEY_HERE"
+```
+
+Keep the same key securely across restarts. Losing or replacing it can prevent decryption of existing MFA secrets. Never commit or publish it.
 
 ### Web dashboard
 
@@ -220,8 +234,11 @@ python -m pytest tests\test_ai004_memory_poisoning.py -q
 
 Report test results only after the command completes successfully in the environment being documented.
 
-## 7. Security Boundaries
+### Latest verified local test run — November 5, 2026
 
+The full local test suite completed with **170 passed, 113 subtests passed, 0 failures, and 40 warnings** in 3.54 seconds. The warnings concern Starlette TestClient per-request cookie deprecation. Run the test command again to verify the current checkout.
+
+## 7. Security Boundaries
 SENTINEL AI is an isolated training and demonstration project.
 
 - Use synthetic data only.
@@ -249,7 +266,6 @@ The following are not currently represented as completed features:
 - MITRE ATLAS mapping.
 - PDF assessment report generation.
 - A general security-event monitoring interface.
-- Automated database bootstrap and migration management.
 - Production deployment and production-grade key management.
 
 Although the database contains assessment, test-run, finding, evidence, and security-event tables, the current simulation API is not a complete persistent assessment-management workflow. In particular, the AI-004 simulation records an audit event on a successful run; it does not create a complete persisted assessment, finding, or evidence record.
@@ -258,27 +274,22 @@ Although the database contains assessment, test-run, finding, evidence, and secu
 
 ```text
 SENTINEL-AI/
-â”œâ”€â”€ app/
-â”‚   â”œâ”€â”€ api/
-â”‚   â”œâ”€â”€ authentication/
-â”‚   â”œâ”€â”€ core/
-â”‚   â”œâ”€â”€ db/
-â”‚   â”‚   â””â”€â”€ migrations/
-â”‚   â”œâ”€â”€ web/
-â”‚   â””â”€â”€ main.py
-â”œâ”€â”€ data/
-â”œâ”€â”€ docs/
-â”‚   â”œâ”€â”€ API_DESIGN.md
-â”‚   â”œâ”€â”€ ARCHITECTURE.md
-â”‚   â””â”€â”€ DATABASE_SCHEMA.md
-â”œâ”€â”€ scripts/
-â”‚   â””â”€â”€ create_admin.py
-â”œâ”€â”€ tests/
-â”œâ”€â”€ requirements.txt
-â”œâ”€â”€ requirements-dev.txt
-â””â”€â”€ README.md
+|-- app/
+|   |-- api/
+|   |-- authentication/
+|   |-- core/
+|   |-- db/
+|   |   |-- migrations/
+|   |-- web/
+|   |-- main.py
+|-- docs/
+|-- scripts/
+|-- tests/
+|-- pytest.ini
+|-- requirements.txt
+|-- requirements-dev.txt
+|-- README.md
 ```
-
 ## 10. Technical Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
