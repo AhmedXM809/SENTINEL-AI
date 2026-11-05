@@ -1,6 +1,6 @@
-﻿# SENTINEL AI - Technical Architecture
+# SENTINEL AI - Technical Architecture
 
-Status: Proposed - not implemented
+Status: Partially implemented prototype; see implementation status
 Version: 0.1
 
 ## 1. System Components
@@ -141,21 +141,37 @@ remain separate and untouched.
 
 ## 12. Implementation Status
 
-Verified:
-- Python and pip installed
-- Git installed and working
-- Isolated virtual environment created
-- Git repository initialized
-- README.md created
-- .gitignore created
+**Status reviewed: 2026-11-05**
 
-Not implemented:
-- FastAPI application
-- Authentication
-- Database schema
-- AI targets
-- Red Team and Blue Team engines
-- Reporting engine
+### Implemented and verified in the current prototype
 
-This document describes the proposed design,
-not verified application capabilities.
+- FastAPI application entry point and localhost web interface.
+- Authentication, password security, sessions, RBAC, and MFA workflows.
+- SQLite base schema and migrations through version 5.
+- Direct prompt-injection simulation (AI-001).
+- Indirect prompt-injection simulation (AI-002).
+- Agent tool-misuse simulation and policy integration (AI-003).
+- Agent memory-poisoning simulation (AI-004).
+- Central security policy engine.
+- Controlled API routes and frontend dashboard integration.
+- Six trust boundaries remain the architectural security model.
+
+### Important implementation boundaries
+
+The current AI targets are deterministic mock simulations. The implemented agent tools do not execute real host commands or perform unrestricted external actions.
+
+The simulation endpoints are fixed scenarios, not general-purpose testing of arbitrary external AI systems. The presence of assessment, test-run, finding, and evidence tables does not mean that the complete assessment persistence and reporting workflow is implemented.
+
+The repository contains the schema and incremental SQL migrations, but does not currently contain an automated database bootstrap or migration runner. The local database must be initialized separately.
+
+### Still planned
+
+- External model adapters and arbitrary authorized target integration.
+- Full RAG security testing and retrieval authorization workflows.
+- Additional AI security scenarios beyond AI-004.
+- Full assessment orchestration and persistent result workflows.
+- Risk scoring and framework mapping.
+- Complete evidence management and report generation.
+- Production deployment, secret management, and operational hardening.
+
+This section describes the implemented prototype. The other sections in this document continue to describe the broader target architecture.

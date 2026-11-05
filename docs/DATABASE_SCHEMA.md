@@ -1,7 +1,7 @@
-﻿# SENTINEL AI - Database Schema
+# SENTINEL AI - Database Schema
 
 Version: 0.1
-Status: Proposed - not implemented
+Status: Partially implemented; see current implementation status
 Database: SQLite
 
 ## 1. Design Principles
@@ -256,9 +256,46 @@ Before this design becomes a working database:
 7. Verify evidence hashing.
 8. Back up the database before migrations.
 
-## 12. Current Status
+## 12. Current Implementation Status
 
-This file is a proposed database design.
+**Status reviewed: 2026-11-05**
 
-No SQLite database, SQL tables, authentication system,
-or application endpoints have been created yet.
+The SQLite database implementation has progressed beyond the original version 0.1 proposal.
+
+### Schema and migration history
+
+- **Version 1:** `app/db/schema.sql` defines the 15 base application tables and their initial indexes.
+- **Version 2:** `002_session_idle_timeout.sql`.
+- **Version 3:** `003_http_auth_security.sql` adds login-attempt storage required by HTTP authentication protections.
+- **Version 4:** `004_login_identifier_throttling.sql` adds the login-identifier throttling index.
+- **Version 5:** `005_mfa_support.sql` adds three MFA tables: `user_mfa`, `mfa_recovery_codes`, and `mfa_challenges`.
+
+The current application readiness check expects schema version 5, 19 application tables, and enabled SQLite foreign-key enforcement.
+
+### Implemented database controls
+
+- SQLite connection helper.
+- Database directory creation.
+- Foreign-key enforcement on each connection.
+- Configured busy timeout.
+- Transaction commit and rollback handling.
+- RBAC role and permission seeding.
+- SQL migrations through version 5.
+
+The initial roles are `administrator`, `security_analyst`, and `auditor`.
+
+### Important initialization limitation
+
+The connection helper opens the database and enables connection settings; it does not execute `schema.sql` or apply migrations.
+
+The current repository does not include an automated first-run database initializer or migration runner. The local database file is not tracked in Git. A fresh checkout therefore requires a correctly initialized database before the authenticated application can be used.
+
+Do not run the base schema against an already initialized database without first checking its version and backing it up.
+
+### Data-model implementation boundary
+
+The schema includes assessment, test-run, finding, evidence, security-event, and audit tables. The current fixed simulation endpoints do not yet implement the complete persistent assessment lifecycle or general evidence/reporting workflows.
+
+SHA-256 supports integrity checking; it does not prove authenticity or make SQLite audit records tamper-proof.
+
+The original design principles and proposed future data model remain useful references, but this section describes the current database implementation.

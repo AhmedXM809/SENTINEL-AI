@@ -1,7 +1,7 @@
-﻿# SENTINEL AI - API Design
+# SENTINEL AI - API Design
 
 Version: 0.1
-Status: Proposed - not implemented
+Status: Partially implemented; see current implementation status
 API prefix: /api/v1
 
 ## 1. Design Principles
@@ -218,10 +218,62 @@ password hashes, or internal stack traces.
 10. Findings and evidence metadata endpoints.
 11. Security events and audit endpoints.
 
-## 16. Current Status
+## 16. Current Implementation Status
 
-This API specification is proposed.
+**Status reviewed: 2026-11-05**
 
-No API endpoints, FastAPI application,
-authentication middleware or routes have
-been implemented or tested yet.
+The routes below are implemented in the current application.
+
+### System routes
+
+- `GET /health`
+- `GET /health/ready`
+- `GET /` (redirects to `/app/`)
+
+### Authentication routes
+
+Prefix: `/api/v1/auth`
+
+- `POST /login`
+- `POST /mfa/verify`
+- `POST /mfa/enroll`
+- `POST /mfa/enroll/confirm`
+- `GET /me`
+- `POST /logout`
+
+### Target routes
+
+Prefix: `/api/v1`
+
+- `GET /targets`
+- `POST /targets/initialize`
+
+### Simulation routes
+
+Prefix: `/api/v1`
+
+- `POST /simulations/AI-001/run`
+- `POST /simulations/AI-002/run`
+- `POST /simulations/AI-003/run`
+- `POST /simulations/AI-004/run`
+
+### Implemented security controls
+
+The application includes authentication and server-side authorization controls, role and permission checks, session security, MFA workflows, login throttling, and protections for authenticated state-changing requests. Simulation execution is limited to the implemented fixed scenarios and their controlled test behavior.
+
+### Not yet implemented from this specification
+
+The following items remain design requirements, not available general API capabilities:
+
+- General model-profile CRUD and external provider integration.
+- General assessment creation, listing, and retrieval.
+- General test-case catalog management.
+- Persistent test-run history and retrieval.
+- General findings and evidence APIs.
+- Security-event and audit-log browsing APIs.
+- General risk scoring and reporting endpoints.
+- Arbitrary assessment batches and external target execution.
+
+The database includes several structures designed for these future workflows, but their existence does not imply that corresponding API routes or complete user workflows are available.
+
+The API specification above remains the broader design reference. Use the implemented route inventory in this section when operating the current prototype.

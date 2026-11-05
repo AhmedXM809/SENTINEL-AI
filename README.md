@@ -1,137 +1,284 @@
-﻿# SENTINEL AI
+# SENTINEL AI
 ## AI Security Testing & Defense Platform
 
-**Tagline:** Discover vulnerabilities. Validate defenses. Protect AI applications.
+**Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
-## 1. Project Overview
+**Project status:** Active local security-testing prototype
+**Application version:** 0.1.0
+**Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
+**Deployment:** Localhost-only
 
-SENTINEL AI is a standalone AI application security assessment
-platform. It provides controlled security testing, defense
-validation, evidence collection, and risk reporting.
+---
 
-The platform has two principal capabilities:
+## 1. Overview
 
-- AI Red Team: perform authorized, repeatable security tests.
-- AI Blue Team: detect insecure behavior, evaluate defenses,
-  and document findings.
+SENTINEL AI is a standalone platform for demonstrating controlled AI application security testing and defense validation.
 
-## 2. Project Objectives
+It combines deterministic security simulations, a centralized security policy engine, authentication and authorization controls, and a web dashboard.
 
-1. Identify common AI application security weaknesses.
-2. Test prompt injection and data leakage.
-3. Assess Retrieval-Augmented Generation (RAG) security.
-4. Evaluate AI agent permissions and tool boundaries.
-5. Validate input/output security controls.
-6. Monitor AI security events.
-7. Calculate evidence-based risk scores.
-8. Map findings to recognized AI security frameworks.
-9. Preserve assessment evidence and generate reports.
-10. Compare vulnerable and secured application configurations.
+The project is designed as an isolated training and portfolio platform. Its current simulations use synthetic data and mock behavior rather than attacking external AI services or production systems.
 
-## 3. Initial Architecture
+## 2. Implemented Capabilities
 
-- Frontend: HTML, HTMX, and CSS.
-- API: Python and FastAPI.
-- Storage: SQLite.
-- Testing: Promptfoo and a custom Python test harness.
-- AI target: deterministic mock model initially.
-- RAG: lightweight local retrieval.
-- Security: validation, authorization, and policy enforcement.
-- Evidence: structured records and SHA-256 integrity hashes.
-- Reporting: PDF assessment reports.
+### AI security simulations
 
-Large local language models are not required for the initial release.
+| Identifier | Simulation | Main security objective |
+|---|---|---|
+| AI-001 | Direct Prompt Injection | Demonstrate direct instruction manipulation and defense validation |
+| AI-002 | Indirect Prompt Injection | Demonstrate malicious instructions introduced through untrusted content |
+| AI-003 | Agent Tool Misuse | Validate simulated agent-tool permissions and policy enforcement |
+| AI-004 | Agent Memory Poisoning | Detect untrusted, manipulated, and tampered memory records |
 
-## 4. Main Components
+Each simulation has a corresponding API execution endpoint and frontend integration.
 
-1. Prompt Injection Laboratory
-2. Data Leakage Detection
-3. RAG Security Laboratory
-4. AI Agent Security
-5. AI Guardrails
-6. AI Identity and Access Control
-7. AI Supply Chain Security
-8. AI Security Monitoring
-9. Risk Scoring Engine
-10. MITRE ATLAS Mapping
-11. Security Assessment Engine
-12. Forensic Evidence and Reporting
+### Central Security Policy Engine
 
-## 5. Testing Targets
+A shared policy engine is integrated with the agent security workflow. It evaluates permitted and denied actions instead of allowing the simulated agent to execute unrestricted tools.
 
-- TestGPT-Vulnerable: deliberately insecure training target.
-- TestGPT-Secure: target with security controls enabled.
+### Authentication and access control
 
-Both targets must use synthetic data and controlled test scenarios.
+Implemented authentication components include:
 
-## 6. Security Boundaries
+- Argon2id password hashing.
+- Server-side session management.
+- Login throttling and account-state checks.
+- Role-based access control (RBAC).
+- TOTP multi-factor authentication.
+- Recovery-code workflows.
+- CSRF and same-origin protections for protected operations.
+- Security-conscious HTTP headers.
 
-- Test only owned systems or explicitly authorized targets.
+The initial roles are:
+
+- **Administrator:** platform administration.
+- **Security Analyst:** authorized security testing.
+- **Auditor:** read-only review permissions.
+
+MFA encryption uses the `SENTINEL_MFA_ENCRYPTION_KEY` environment variable. Keep the same key securely across restarts. Never commit it.
+
+### Web dashboard
+
+The frontend is served by FastAPI from `app/web/`. It provides the local application interface for authentication, approved targets, and the implemented simulations.
+
+### Database
+
+The application uses SQLite. The checked-in schema and migrations represent database versions 1 through 5. The current readiness check expects schema version 5, 19 application tables, and enabled foreign-key enforcement.
+
+## 3. Technology Stack
+
+| Component | Technology |
+|---|---|
+| Backend | Python, FastAPI |
+| ASGI server | Uvicorn |
+| Frontend | HTML, CSS, JavaScript |
+| Database | SQLite |
+| Password security | Argon2id |
+| MFA | TOTP and encrypted secret storage |
+| Cryptography | cryptography package |
+| Testing | pytest and FastAPI test client dependencies |
+| Version control | Git |
+
+No large local language model is required. The current scenarios use deterministic mock behavior.
+
+## 4. API Endpoints
+
+The following are implemented routes, not the broader planned API specification.
+
+### System
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Application health |
+| GET | `/health/ready` | Database readiness |
+| GET | `/` | Redirect to the web application |
+
+### Authentication
+
+| Method | Endpoint |
+|---|---|
+| POST | `/api/v1/auth/login` |
+| POST | `/api/v1/auth/mfa/verify` |
+| POST | `/api/v1/auth/mfa/enroll` |
+| POST | `/api/v1/auth/mfa/enroll/confirm` |
+| GET | `/api/v1/auth/me` |
+| POST | `/api/v1/auth/logout` |
+
+### Targets
+
+| Method | Endpoint |
+|---|---|
+| GET | `/api/v1/targets` |
+| POST | `/api/v1/targets/initialize` |
+
+### Security simulations
+
+| Method | Endpoint |
+|---|---|
+| POST | `/api/v1/simulations/AI-001/run` |
+| POST | `/api/v1/simulations/AI-002/run` |
+| POST | `/api/v1/simulations/AI-003/run` |
+| POST | `/api/v1/simulations/AI-004/run` |
+
+FastAPI's interactive API documentation is available at `/docs` when the local server is running.
+
+## 5. Local Development
+
+### Requirements
+
+- Windows 11 or a compatible development environment.
+- Python; the current development environment uses Python 3.14.10.
+- Git.
+
+### Install dependencies
+
+From the project directory:
+
+```powershell
+Set-Location "D:\Cybersecurity-Projects\SENTINEL-AI"
+py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+```
+
+### Important database initialization note
+
+The repository contains the base SQLite schema and migrations 002 through 005. However, the current application does not include an automatic first-run database bootstrap or migration runner.
+
+The database connection creates the `data` directory and opens `data/sentinel.db`; it does not create the schema or apply migrations. A fresh checkout therefore needs a correctly initialized schema version 5 database before the complete authenticated application can be used.
+
+Do not treat an empty SQLite file as an initialized database. The readiness endpoint should report `ready`, schema version `5`, 19 tables, and enabled foreign keys.
+
+### Seed roles and permissions
+
+After a correctly initialized database is available:
+
+```powershell
+python -m app.db.seed
+```
+
+This command seeds RBAC roles and permissions. It does not initialize the database schema or apply migrations.
+
+### Provision an administrator
+
+```powershell
+python scripts\create_admin.py
+```
+
+The provisioning script prompts for credentials and does not accept the password as a command-line argument. It refuses to create another initial administrator when an active administrator exists.
+
+### Run the application
+
+Keep the server running in its own PowerShell window:
+
+```powershell
+Set-Location "D:\Cybersecurity-Projects\SENTINEL-AI"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info
+```
+
+Open the dashboard at `http://127.0.0.1:8000/app/`.
+
+Other local endpoints:
+
+- Health: `http://127.0.0.1:8000/health`
+- Database readiness: `http://127.0.0.1:8000/health/ready`
+- API documentation: `http://127.0.0.1:8000/docs`
+
+The application is configured for localhost access. Do not expose this development instance directly to the public internet.
+
+## 6. Testing
+
+Automated tests are located in `tests/`.
+
+Install development dependencies and run the suite:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Run a focused AI-004 simulation test:
+
+```powershell
+python -m pytest tests\test_ai004_memory_poisoning.py -q
+```
+
+Report test results only after the command completes successfully in the environment being documented.
+
+## 7. Security Boundaries
+
+SENTINEL AI is an isolated training and demonstration project.
+
 - Use synthetic data only.
-- Do not expose host shell execution to AI agents.
-- Do not provide unrestricted filesystem or network access.
-- Simulate sensitive agent tools during initial development.
-- Require human approval for sensitive operations.
-- Protect credentials and API keys using environment variables.
-- Apply rate limits, resource limits, and timeouts.
-- Preserve evidence and record test outcomes.
+- Test only systems you own or are explicitly authorized to assess.
+- Current AI simulations use controlled, deterministic mock behavior.
+- Agent tools are simulated; no arbitrary host shell execution is exposed.
+- Do not enable unrestricted filesystem or network access.
+- Do not place credentials, API keys, or encryption keys in Git.
+- Keep the application bound to localhost during development.
+- Treat audit records and evidence as security-sensitive data.
 
-## 7. Development Principles
+The HMAC key used in the AI-004 demonstration is illustrative. It is not a production key-management implementation.
 
-- One implementation step at a time.
-- Read-only checks before changes.
-- Verify every important change.
-- Back up existing files before modifying them.
-- Keep resource consumption low.
-- Avoid unnecessary service restarts.
-- Do not claim a feature works until tested.
+## 8. Known Limitations and Planned Work
 
-## 8. Development Environment
+The following are not currently represented as completed features:
 
-- OS: Windows 11 Pro, 64-bit.
-- Python: 3.14.10.
-- Git: 2.56.0.windows.4.
-- Python environment: .venv.
-- Database: SQLite.
-- Project directory: D:\Cybersecurity-Projects\SENTINEL-AI.
+- Arbitrary external AI target integration.
+- External model-provider adapters.
+- Full RAG security testing.
+- AI-005 through AI-012.
+- General assessment creation and history workflows.
+- Persistent storage of simulation findings and evidence.
+- A complete risk-scoring engine.
+- MITRE ATLAS mapping.
+- PDF assessment report generation.
+- A general security-event monitoring interface.
+- Automated database bootstrap and migration management.
+- Production deployment and production-grade key management.
 
-## 9. Development Roadmap
+Although the database contains assessment, test-run, finding, evidence, and security-event tables, the current simulation API is not a complete persistent assessment-management workflow. In particular, the AI-004 simulation records an audit event on a successful run; it does not create a complete persisted assessment, finding, or evidence record.
 
-The planned development cycle is 12 weeks:
+## 9. Repository Structure
 
-1. Project foundation and threat modeling.
-2. API foundation and authentication.
-3. Vulnerable AI target.
-4. Model adapter.
-5. Red Team testing engine.
-6. RAG security.
-7. Agent security.
-8. Blue Team defenses.
-9. Risk scoring and framework mapping.
-10. Frontend and assessment history.
-11. Validation and regression testing.
-12. Documentation and portfolio release.
+```text
+SENTINEL-AI/
+â”œâ”€â”€ app/
+â”‚   â”œâ”€â”€ api/
+â”‚   â”œâ”€â”€ authentication/
+â”‚   â”œâ”€â”€ core/
+â”‚   â”œâ”€â”€ db/
+â”‚   â”‚   â””â”€â”€ migrations/
+â”‚   â”œâ”€â”€ web/
+â”‚   â””â”€â”€ main.py
+â”œâ”€â”€ data/
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ API_DESIGN.md
+â”‚   â”œâ”€â”€ ARCHITECTURE.md
+â”‚   â””â”€â”€ DATABASE_SCHEMA.md
+â”œâ”€â”€ scripts/
+â”‚   â””â”€â”€ create_admin.py
+â”œâ”€â”€ tests/
+â”œâ”€â”€ requirements.txt
+â”œâ”€â”€ requirements-dev.txt
+â””â”€â”€ README.md
+```
 
-## 10. Current Status
+## 10. Technical Documentation
 
-Phase: Project initialization.
+- [Architecture](docs/ARCHITECTURE.md)
+- [API Design](docs/API_DESIGN.md)
+- [Database Schema](docs/DATABASE_SCHEMA.md)
 
-Verified:
-- Python installed and working.
-- pip installed and working.
-- Git installed and working.
-- Project directory created.
-- Isolated Python virtual environment verified.
-- Git repository initialized.
-- .gitignore created and virtual environment excluded.
+These documents preserve the broader design and identify which parts are implemented and which remain planned.
 
-Not yet implemented:
-- FastAPI application.
-- Authentication.
-- AI testing targets.
-- Red Team and Blue Team engines.
-- Database schema.
-- Frontend.
-- Assessment reports.
+## 11. Development Principles
 
-This README describes the intended design, not implemented capabilities.
+- Verify before modifying.
+- Back up before changes.
+- Keep simulations deterministic and reproducible.
+- Keep test data synthetic.
+- Apply authorization on the server.
+- Avoid unnecessary resource consumption.
+- Never describe a planned capability as implemented.
