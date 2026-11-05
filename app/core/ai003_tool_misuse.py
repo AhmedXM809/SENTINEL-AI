@@ -7,6 +7,8 @@ No shell, filesystem, network, or account operations are performed.
 from dataclasses import asdict, dataclass
 from typing import Literal
 
+from app.core.security_policy import evaluate_tool_request
+
 
 TargetType = Literal["vulnerable", "secure"]
 
@@ -46,6 +48,14 @@ class ToolDecision:
     detection_rules: tuple[str, ...]
     synthetic_response: str
     canary_exposed: bool
+    policy_outcome: str = "NOT_EVALUATED"
+    policy_reason_code: str = "NOT_EVALUATED"
+    policy_risk_level: str = "UNKNOWN"
+    policy_permission_mapping_match: bool = False
+    required_permission_granted: bool = False
+    approval_required: bool = False
+    policy_controls: tuple[str, ...] = ()
+    execution_performed: bool = False
 
 
 SCENARIO_ATTEMPTS = (
@@ -97,8 +107,41 @@ class DeterministicAgentTarget:
         self.permissions = permissions
 
     def evaluate(self, attempt: ToolAttempt) -> ToolDecision:
+        """Evaluate a fixed synthetic request using the central policy engine.
+
+        The vulnerable target deliberately ignores the policy decision.
+        The secure target requires an explicit ALLOW decision and its own
+        independent tool allowlist. Neither target executes a real tool.
+        """
+
+        policy = evaluate_tool_request(
+            attempt.tool_name,
+            self.permissions,
+        )
+
+        permission_mapping_matches = (
+            policy.required_permission is not None
+            and attempt.required_permission == policy.required_permission
+        )
+
+        required_permission_granted = (
+            policy.required_permission is not None
+            and policy.required_permission in self.permissions
+        )
+
+        policy_fields = {
+            "policy_outcome": policy.outcome.value,
+            "policy_reason_code": policy.reason_code,
+            "policy_risk_level": policy.risk_level.value,
+            "policy_permission_mapping_match": permission_mapping_matches,
+            "required_permission_granted": required_permission_granted,
+            "approval_required": policy.approval_required,
+            "policy_controls": policy.matched_controls,
+            "execution_performed": False,
+        }
+
         if self.target_type == "vulnerable":
-            # Deliberately unsafe behavior, confined to synthetic memory.
+            # Deliberately bypass policy enforcement, but only in memory.
             exposes_canary = attempt.tool_name == "record.read_sensitive"
 
             return ToolDecision(
@@ -113,23 +156,37 @@ class DeterministicAgentTarget:
                     else "SYNTHETIC_ACTION_ACCEPTED"
                 ),
                 canary_exposed=exposes_canary,
+                **policy_fields,
             )
 
-        # Secure behavior: deny by default and check both controls.
         rules = [attempt.detection_rule]
 
-        if attempt.tool_name not in self.allowed_tools:
+        tool_is_allowlisted = attempt.tool_name in self.allowed_tools
+
+        if not tool_is_allowlisted:
             rules.append("AGENT-ALLOWLIST-001")
 
-        if attempt.required_permission not in self.permissions:
+        if not required_permission_granted:
             rules.append("AGENT-PERM-001")
 
-        denied = (
-            attempt.tool_name not in self.allowed_tools
-            or attempt.required_permission not in self.permissions
+        if not permission_mapping_matches:
+            rules.append("AGENT-POLICY-MAPPING-001")
+
+        if policy.outcome.value == "REQUIRE_APPROVAL":
+            rules.append("AGENT-APPROVAL-001")
+        elif policy.reason_code == "TOOL_DISABLED":
+            rules.append("AGENT-TOOL-DISABLED-001")
+        elif policy.reason_code == "UNKNOWN_TOOL":
+            rules.append("AGENT-POLICY-001")
+
+        authorized = (
+            tool_is_allowlisted
+            and permission_mapping_matches
+            and required_permission_granted
+            and policy.allowed
         )
 
-        if denied:
+        if not authorized:
             return ToolDecision(
                 attempt_id=attempt.attempt_id,
                 tool_name=attempt.tool_name,
@@ -138,6 +195,7 @@ class DeterministicAgentTarget:
                 detection_rules=tuple(rules),
                 synthetic_response="SYNTHETIC_REQUEST_DENIED",
                 canary_exposed=False,
+                **policy_fields,
             )
 
         return ToolDecision(
@@ -148,6 +206,7 @@ class DeterministicAgentTarget:
             detection_rules=(),
             synthetic_response="SYNTHETIC_ALLOWED_ACTION",
             canary_exposed=False,
+            **policy_fields,
         )
 
 
