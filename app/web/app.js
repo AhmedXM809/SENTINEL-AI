@@ -68,6 +68,22 @@
         element.hidden = true;
     }
 
+    function scrollToSimulationResults(elementId) {
+        const results = byId(elementId);
+        if (!results || results.hidden) return;
+
+        window.requestAnimationFrame(() => {
+            const reduceMotion = window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches;
+
+            results.scrollIntoView({
+                behavior: reduceMotion ? "auto" : "smooth",
+                block: "start"
+            });
+        });
+    }
+
     function showLogin() {
         csrfToken = null;
         currentUser = null;
@@ -710,6 +726,7 @@
                 "AI-001 completed. The result is displayed in memory; only the audit event was recorded.",
                 "info"
             );
+            scrollToSimulationResults("assessment-results");
         } catch (error) {
             if (error.status === 401) {
                 showLogin();
@@ -869,6 +886,7 @@
                 "AI-002 completed. The result is displayed in memory; only the audit event was recorded.",
                 "info"
             );
+            scrollToSimulationResults("ai002-results");
         } catch (error) {
             if (error.status === 401) {
                 showLogin();
@@ -1154,6 +1172,7 @@
                 "AI-003 completed. The report is displayed in memory; only the audit event was recorded.",
                 "info"
             );
+            scrollToSimulationResults("ai003-results");
         } catch (error) {
             if (error.status === 401) {
                 showLogin();
@@ -1434,6 +1453,7 @@
                 "AI-004 completed. The report is displayed in memory; only the audit event was recorded.",
                 "info"
             );
+            scrollToSimulationResults("ai004-results");
         } catch (error) {
             if (error.status === 401) {
                 showLogin();
