@@ -290,6 +290,22 @@ SENTINEL-AI/
 |-- requirements-dev.txt
 |-- README.md
 ```
+## Application Screenshots
+
+The following screenshots show the SENTINEL AI local application and its controlled testing capabilities.
+
+### 1. Main Dashboard
+
+![SENTINEL AI Dashboard](docs/images/dashboard.png)
+
+### 2. AI-002 — Indirect Prompt Injection Report
+
+![AI-002 Security Assessment](docs/images/ai002-report.png)
+
+### 3. Automated Test Results
+
+![SENTINEL AI Automated Test Results](docs/images/test-results.png)
+
 ## 10. Technical Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
