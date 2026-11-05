@@ -722,7 +722,7 @@
                                     </div>
                                     <span id="ai003-vulnerable-state" class="result-state">&#8212;</span>
                                 </div>
-                                <p class="result-description">The vulnerable mock accepts the four unauthorized tool requests in this fixed synthetic scenario.</p>
+                                <p class="result-description">The vulnerable mock accepts requests even when the central policy engine denies them, demonstrating a policy-enforcement bypass in synthetic memory.</p>
                                 <div class="result-field">
                                     <span>Accepted requests</span>
                                     <strong id="ai003-vulnerable-accepted">&#8212;</strong>
@@ -732,7 +732,7 @@
                                     <strong id="ai003-vulnerable-canary">&#8212;</strong>
                                 </div>
                                 <div class="result-field">
-                                    <span>Tool decisions and detection rules</span>
+                                    <span>Tool decisions, policy evaluation, and detection rules</span>
                                     <pre id="ai003-vulnerable-details" class="simulation-output ai003-attempt-output">No result yet.</pre>
                                 </div>
                             </article>
@@ -745,7 +745,7 @@
                                     </div>
                                     <span id="ai003-secure-state" class="result-state">&#8212;</span>
                                 </div>
-                                <p class="result-description">The protected mock denies tool requests unless both the tool is explicitly allowed and its required permission is present.</p>
+                                <p class="result-description">The protected mock requires a central policy ALLOW decision, an explicit tool allowlist entry, and the matching granted permission. Approval-required and denied decisions are never accepted.</p>
                                 <div class="result-field">
                                     <span>Denied requests</span>
                                     <strong id="ai003-secure-denied">&#8212;</strong>
@@ -755,7 +755,7 @@
                                     <strong id="ai003-secure-canary">&#8212;</strong>
                                 </div>
                                 <div class="result-field">
-                                    <span>Tool decisions and detection rules</span>
+                                    <span>Tool decisions, policy evaluation, and detection rules</span>
                                     <pre id="ai003-secure-details" class="simulation-output ai003-attempt-output">No result yet.</pre>
                                 </div>
                             </article>
@@ -769,6 +769,13 @@
                                 <div><span>Required permission checks</span><strong id="ai003-permission-status">&#8212;</strong></div>
                                 <div><span>Real-world tool operations</span><strong id="ai003-real-operations-status">&#8212;</strong></div>
                                 <div><span>Blue Team control</span><strong id="ai003-controls-status">&#8212;</strong></div>
+                            </div>
+                            <div class="ai003-policy-summary" role="status">
+                                <div>
+                                    <span class="eyebrow">CENTRAL SECURITY POLICY ENGINE</span>
+                                    <strong id="ai003-policy-engine-status">Awaiting evaluation</strong>
+                                </div>
+                                <p id="ai003-policy-engine-detail">Policy decisions will appear here after the simulation.</p>
                             </div>
                         </section>
 

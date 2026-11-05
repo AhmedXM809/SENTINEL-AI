@@ -89,6 +89,61 @@ class TestAI003FrontendContract(unittest.TestCase):
             )
         )
 
+    def test_policy_engine_summary_elements_exist_and_are_unique(self):
+        required = (
+            "ai003-policy-engine-status",
+            "ai003-policy-engine-detail",
+        )
+        for element_id in required:
+            with self.subTest(element_id=element_id):
+                self.assertEqual(
+                    len(re.findall(rf'id="{re.escape(element_id)}"', HTML)),
+                    1,
+                )
+
+        self.assertIn("CENTRAL SECURITY POLICY ENGINE", HTML)
+        self.assertIn('class="ai003-policy-summary"', HTML)
+
+    def test_renderer_displays_all_policy_decision_fields(self):
+        required_fields = (
+            "policy_outcome",
+            "policy_reason_code",
+            "policy_risk_level",
+            "policy_permission_mapping_match",
+            "required_permission_granted",
+            "approval_required",
+            "execution_performed",
+            "policy_controls",
+        )
+        for field in required_fields:
+            with self.subTest(field=field):
+                self.assertIn(field, JS)
+
+    def test_policy_engine_summary_requires_complete_safe_decisions(self):
+        self.assertIn('validPolicyOutcomes.has(item.policy_outcome)', JS)
+        self.assertIn('item.policy_outcome === "DENY"', JS)
+        self.assertIn('item.execution_performed === false', JS)
+        self.assertIn("const policyContractValid", JS)
+        self.assertIn("const policyEnforced", JS)
+        self.assertIn('byId("ai003-policy-engine-status").textContent', JS)
+        self.assertIn('byId("ai003-policy-engine-detail").textContent', JS)
+
+    def test_policy_details_continue_to_use_text_rendering(self):
+        self.assertIn(
+            'byId("ai003-vulnerable-details").textContent',
+            JS,
+        )
+        self.assertIn(
+            'byId("ai003-secure-details").textContent',
+            JS,
+        )
+        self.assertIn(
+            'byId("ai003-policy-engine-detail").textContent',
+            JS,
+        )
+        self.assertNotIn("innerHTML", JS)
+        self.assertNotIn("insertAdjacentHTML", JS)
+
     def test_ai003_styles_are_present(self):
         self.assertIn("/* AI-003 agent tool authorization workspace */", CSS)
         self.assertIn(".ai003-boundary-note", CSS)
