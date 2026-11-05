@@ -1,4 +1,4 @@
-﻿# Python environments
+# Python environments
 .venv/
 venv/
 __pycache__/
@@ -38,3 +38,6 @@ desktop.ini
 
 # Editor settings
 .vscode/
+
+# Local safety backups
+/backups/

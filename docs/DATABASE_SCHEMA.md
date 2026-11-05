@@ -284,14 +284,40 @@ The current application readiness check expects schema version 5, 19 application
 
 The initial roles are `administrator`, `security_analyst`, and `auditor`.
 
-### Important initialization limitation
+### Database initialization and migration utility
 
-The connection helper opens the database and enables connection settings; it does not execute `schema.sql` or apply migrations.
+The repository includes `app/db/migration_runner.py` and the command-line
+entry point `scripts/initialize_database.py`.
 
-The current repository does not include an automated first-run database initializer or migration runner. The local database file is not tracked in Git. A fresh checkout therefore requires a correctly initialized database before the authenticated application can be used.
+- A fresh, empty database receives the base schema and migrations 002-005.
+- A supported version 1-4 database is checked using the utility's supported
+  schema checks and backed up using SQLite's online backup API before its
+  remaining migrations are applied. The backup is checked with SQLite
+  `integrity_check`, `foreign_key_check`, and a schema-version comparison.
+- Default RBAC roles and permissions are seeded during fresh initialization
+  or when all four RBAC tables are empty.
+- If any RBAC table already contains data, initialization preserves existing
+  RBAC state, including deliberate permission-mapping changes. It does not
+  attempt partial RBAC repair.
+- A version-5 database receives no schema migrations or new backup. If all
+  four RBAC tables are empty, default RBAC data may still be seeded.
+- An unversioned non-empty database, or a versioned database that fails the
+  utility's supported checks, is refused. A database newer than schema
+  version 5 is also refused. The checks cover schema version,
+  application-table count, foreign-key enforcement, and foreign-key
+  integrity; they do not compare every column, index, or constraint with
+  the canonical schema. The utility never silently drops or recreates data.
 
-Do not run the base schema against an already initialized database without first checking its version and backing it up.
+Migration 003 intentionally revokes existing sessions. Users must sign in
+again after an upgrade that applies that migration. Stop the application
+before upgrading an older database.
 
+Automated migration tests use temporary SQLite databases and cover fresh
+initialization, version-1 upgrades, pre-migration backup integrity and
+foreign-key checks, current-version verification, refusal of unversioned
+non-empty databases, refusal of future versions, RBAC default seeding,
+preservation of existing RBAC customizations, and retry after a rolled-back
+RBAC seed failure.
 ### Data-model implementation boundary
 
 The schema includes assessment, test-run, finding, evidence, security-event, and audit tables. The current fixed simulation endpoints do not yet implement the complete persistent assessment lifecycle or general evidence/reporting workflows.

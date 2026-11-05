@@ -142,24 +142,38 @@ python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
 ```
 
-### Important database initialization note
+### Initialize or upgrade the database
 
-The repository contains the base SQLite schema and migrations 002 through 005. However, the current application does not include an automatic first-run database bootstrap or migration runner.
-
-The database connection creates the `data` directory and opens `data/sentinel.db`; it does not create the schema or apply migrations. A fresh checkout therefore needs a correctly initialized schema version 5 database before the complete authenticated application can be used.
-
-Do not treat an empty SQLite file as an initialized database. The readiness endpoint should report `ready`, schema version `5`, 19 tables, and enabled foreign keys.
-
-### Seed roles and permissions
-
-After a correctly initialized database is available:
+Run the database initializer from the project root:
 
 ```powershell
-python -m app.db.seed
+python scripts\initialize_database.py
 ```
 
-This command seeds RBAC roles and permissions. It does not initialize the database schema or apply migrations.
+A fresh, empty database receives the base schema and migrations through
+version 5, followed by the initial RBAC roles and permissions. For a
+supported older version (1 through 4), the utility checks the supported
+schema properties, creates a SQLite online backup under
+`backups/database-migrations/`, verifies the backup's integrity and foreign
+keys, and then applies the remaining migrations. Migration 003 revokes
+pre-migration sessions, so users must authenticate again after that upgrade.
 
+A version-5 database receives no schema migrations and no new backup.
+The utility still checks the supported schema properties and examines RBAC
+state. It seeds default RBAC records only when all four RBAC tables are empty.
+If any of those tables already contain data, existing RBAC state and
+permission customizations are preserved.
+
+An unversioned database containing tables, a versioned database that fails
+the utility's supported checks, or a database newer than this code supports
+is refused rather than reset. The checks cover schema version,
+application-table count, foreign-key enforcement, and foreign-key integrity;
+they do not compare every column, index, or constraint with the canonical
+schema.
+
+Stop the application before upgrading an older database. The readiness
+endpoint should report `ready`, schema version `5`, 19 tables, and enabled
+foreign keys.
 ### Provision an administrator
 
 ```powershell
