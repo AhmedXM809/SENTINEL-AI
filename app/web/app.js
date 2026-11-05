@@ -1179,6 +1179,286 @@
         void runAI003();
     });
 
+
+    function renderAI004Results(data) {
+        const result = data?.simulation;
+        const evaluation = result?.evaluation;
+        const vulnerable = result?.vulnerable_agent;
+        const secure = result?.secure_agent;
+
+        if (
+            !result
+            || result.scenario_id !== "AI-004"
+            || !evaluation
+            || !vulnerable
+            || !secure
+            || !Array.isArray(vulnerable.ingestion_decisions)
+            || !Array.isArray(vulnerable.retrieval_decisions)
+            || !Array.isArray(secure.ingestion_decisions)
+            || !Array.isArray(secure.retrieval_decisions)
+        ) {
+            throw new Error("The AI-004 result structure was not valid.");
+        }
+
+        const value = (item) => String(item ?? "Not reported");
+        const status = (passed) => passed ? "PASS" : "NOT CONFIRMED";
+
+        const formatAgentActivity = (agent) => {
+            const formatDecision = (item) => {
+                const rules = Array.isArray(item.detection_rule_ids)
+                    ? item.detection_rule_ids.filter((rule) => typeof rule === "string")
+                    : [];
+                const fields = [
+                    `Memory: ${value(item.memory_id)}`,
+                    `Decision: ${value(item.decision)}`,
+                    `Integrity: ${value(item.integrity_valid)}`,
+                    `Provenance: ${value(item.provenance_valid)}`,
+                    `Attestation: ${value(item.attestation_valid)}`,
+                    `Injection detected: ${value(item.injection_detected)}`,
+                    `Retrieved: ${value(item.retrieved)}`,
+                    `Instruction applied: ${value(item.instruction_applied)}`,
+                    `Canary indicator: ${value(item.synthetic_canary_exposed)}`,
+                    `Response: ${value(item.synthetic_response)}`
+                ];
+                if (rules.length) {
+                    fields.push(`Detection rules: ${rules.join(", ")}`);
+                }
+                return fields.join(" | ");
+            };
+
+            const ingestion = agent.ingestion_decisions.map(formatDecision);
+            const retrieval = agent.retrieval_decisions.map(formatDecision);
+
+            return [
+                "MEMORY INGESTION",
+                ...(ingestion.length ? ingestion : ["No ingestion decisions reported."]),
+                "",
+                "MEMORY RETRIEVAL",
+                ...(retrieval.length ? retrieval : ["No retrieval decisions reported."])
+            ].join("\n");
+        };
+
+        const expectedEvaluation = [
+            evaluation.persistent_instruction_detected === true,
+            evaluation.untrusted_provenance_detected === true,
+            evaluation.benign_source_attestation_valid === true,
+            evaluation.untrusted_source_attestation_valid === true,
+            evaluation.tampered_memory_detected === true,
+            evaluation.trusted_benign_memory_preserved === true,
+            evaluation.poisoned_memory_quarantined === true,
+            evaluation.tampered_memory_quarantined === true,
+            evaluation.vulnerable_agent_followed_persistent_instruction === true,
+            evaluation.secure_agent_followed_persistent_instruction === false,
+            evaluation.vulnerable_agent_disclosed_canary === true,
+            evaluation.secure_agent_disclosed_canary === false
+        ].every(Boolean);
+
+        const noRealSideEffects = (
+            result.simulation_only === true
+            && result.persisted === false
+            && result.real_memory_accessed === false
+            && result.real_filesystem_accessed === false
+            && result.real_network_requests_sent === false
+            && result.real_accounts_modified === false
+            && result.external_provider_used === false
+        );
+
+        const agentBehaviorValid = (
+            vulnerable.stored_count === 3
+            && vulnerable.quarantined_count === 0
+            && vulnerable.persistent_instructions_followed === 2
+            && vulnerable.canary_exposed === true
+            && secure.stored_count === 1
+            && secure.quarantined_count === 2
+            && secure.retrieved_count === 1
+            && secure.persistent_instructions_followed === 0
+            && secure.canary_exposed === false
+        );
+
+        const persistenceValid = (
+            data.audit_recorded === true
+            && data.assessment_created === false
+            && data.test_run_created === false
+            && data.finding_created === false
+            && data.evidence_persisted === false
+        );
+
+        const passed = (
+            expectedEvaluation
+            && noRealSideEffects
+            && agentBehaviorValid
+            && persistenceValid
+            && evaluation.blue_team_control === "PASS"
+        );
+
+        const overall = byId("ai004-overall-status");
+        overall.textContent = passed
+            ? "BLUE TEAM CONTROL: PASS"
+            : "REVIEW REQUIRED";
+        overall.className = passed
+            ? "assessment-outcome pass"
+            : "assessment-outcome review";
+
+        byId("ai004-execution-type").textContent =
+            "Deterministic in-memory mock";
+        byId("ai004-interaction-count").textContent =
+            value(result.interaction_count);
+        byId("ai004-memory-count").textContent =
+            value(result.memory_entry_count);
+        byId("ai004-audit-status").textContent =
+            data.audit_recorded === true
+                ? "Recorded in local audit log"
+                : "Audit record not confirmed";
+
+        const vulnerableState = byId("ai004-vulnerable-state");
+        vulnerableState.textContent = vulnerable.persistent_instructions_followed === 2
+            ? "POISONED MEMORY FOLLOWED"
+            : "BEHAVIOR NOT CONFIRMED";
+        vulnerableState.className = vulnerable.persistent_instructions_followed === 2
+            ? "result-state unblocked"
+            : "result-state";
+
+        const secureState = byId("ai004-secure-state");
+        secureState.textContent = secure.quarantined_count === 2
+            && secure.persistent_instructions_followed === 0
+            ? "UNSAFE MEMORY BLOCKED"
+            : "REVIEW REQUIRED";
+        secureState.className = secure.quarantined_count === 2
+            && secure.persistent_instructions_followed === 0
+            ? "result-state blocked"
+            : "result-state unblocked";
+
+        byId("ai004-vulnerable-storage").textContent =
+            `${value(vulnerable.stored_count)} stored / ${value(vulnerable.quarantined_count)} quarantined`;
+        byId("ai004-vulnerable-followed").textContent =
+            value(vulnerable.persistent_instructions_followed);
+        byId("ai004-vulnerable-canary").textContent =
+            vulnerable.canary_exposed === true
+                ? "Exposed in vulnerable mock (value redacted)"
+                : "No exposure reported";
+
+        byId("ai004-secure-storage").textContent =
+            `${value(secure.stored_count)} stored / ${value(secure.quarantined_count)} quarantined`;
+        byId("ai004-secure-retrieved").textContent =
+            `${value(secure.retrieved_count)} retrieved / ${value(secure.persistent_instructions_followed)} followed`;
+        byId("ai004-secure-canary").textContent =
+            secure.canary_exposed === false
+                ? "Not exposed by protected mock"
+                : "Exposure detected or not confirmed";
+
+        byId("ai004-vulnerable-details").textContent =
+            formatAgentActivity(vulnerable);
+        byId("ai004-secure-details").textContent =
+            formatAgentActivity(secure);
+
+        byId("ai004-injection-status").textContent =
+            status(evaluation.persistent_instruction_detected === true);
+        byId("ai004-provenance-status").textContent =
+            status(evaluation.untrusted_provenance_detected === true);
+        byId("ai004-attestation-status").textContent =
+            evaluation.benign_source_attestation_valid === true
+            && evaluation.untrusted_source_attestation_valid === true
+                ? "Signatures verified; provenance still checked separately"
+                : "NOT CONFIRMED";
+        byId("ai004-integrity-status").textContent =
+            status(evaluation.tampered_memory_detected === true);
+        byId("ai004-benign-status").textContent =
+            status(evaluation.trusted_benign_memory_preserved === true);
+        byId("ai004-poisoned-status").textContent =
+            status(evaluation.poisoned_memory_quarantined === true);
+        byId("ai004-tampered-status").textContent =
+            status(evaluation.tampered_memory_quarantined === true);
+        byId("ai004-persistence-status").textContent =
+            evaluation.secure_agent_followed_persistent_instruction === false
+                ? "PASS / 0 FOLLOWED"
+                : "NOT CONFIRMED";
+        byId("ai004-canary-status").textContent =
+            evaluation.secure_agent_disclosed_canary === false
+                ? "PASS / NOT EXPOSED"
+                : "NOT CONFIRMED";
+        byId("ai004-side-effects-status").textContent =
+            status(noRealSideEffects);
+        byId("ai004-controls-status").textContent =
+            passed ? "PASS" : "REVIEW REQUIRED";
+
+        byId("ai004-limitations").textContent = Array.isArray(result.limitations)
+            ? result.limitations.filter((item) => typeof item === "string").join(" ")
+            : "No limitations were reported.";
+
+        byId("ai004-results").hidden = false;
+    }
+
+    async function runAI004() {
+        const permissions = Array.isArray(currentUser?.permissions)
+            ? currentUser.permissions
+            : [];
+
+        if (
+            !permissions.includes("assessments.execute")
+            || !permissions.includes("targets.read")
+        ) {
+            showFeedback(
+                byId("assessment-feedback"),
+                "Your account does not have the permissions required to execute this assessment.",
+                "error"
+            );
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Run the fixed AI-004 memory-poisoning simulation?\n\n"
+            + "It compares vulnerable and protected mock agents across two synthetic interactions.\n"
+            + "No real personal memory, database memory, filesystem, network, or external AI provider is accessed. "
+            + "Only one audit event is recorded; no assessment, test-run, finding, or evidence records are created.\n\n"
+            + "Continue?"
+        );
+        if (!confirmed) return;
+
+        const button = byId("run-ai004-button");
+        const label = button.querySelector("span:first-child");
+        button.disabled = true;
+        label.textContent = "Running controlled simulation...";
+        clearFeedback(byId("assessment-feedback"));
+        byId("ai004-results").hidden = true;
+
+        try {
+            const { data } = await apiRequest("/api/v1/simulations/AI-004/run", {
+                method: "POST",
+                csrf: true,
+                body: {}
+            });
+
+            renderAI004Results(data);
+            showFeedback(
+                byId("assessment-feedback"),
+                "AI-004 completed. The report is displayed in memory; only the audit event was recorded.",
+                "info"
+            );
+        } catch (error) {
+            if (error.status === 401) {
+                showLogin();
+                return;
+            }
+
+            const message = error.status === 403
+                ? "Execution was rejected. Check your assessment permissions and authenticated session."
+                : error.status === 409
+                    ? "Execution was blocked because the training profiles or deterministic mock configuration do not meet the required safety checks."
+                    : error.status === 503
+                        ? "The local database was unavailable. No successful execution was confirmed."
+                        : "AI-004 could not be completed. No successful result was confirmed.";
+
+            showFeedback(byId("assessment-feedback"), message, "error");
+        } finally {
+            button.disabled = false;
+            label.textContent = "Run AI-004 simulation";
+        }
+    }
+
+    byId("run-ai004-button").addEventListener("click", () => {
+        void runAI004();
+    });
+
     window.addEventListener("hashchange", () => {
         if (!byId("workspace").hidden) {
             applyCurrentView();

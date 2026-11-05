@@ -24,6 +24,10 @@ from app.authentication.routes import (
 from app.authentication.service import AuthenticatedUser, LoginService
 from app.core.ai_security import run_ai_001
 from app.core.ai003_tool_misuse import run_ai_003
+from app.core.ai004_memory_poisoning import (
+    SYNTHETIC_MEMORY_CANARY,
+    run_ai_004,
+)
 from app.db.connection import get_connection
 
 
@@ -402,6 +406,104 @@ def execute_ai_003(
                 connection,
                 user.user_id,
                 "AI-003",
+            )
+
+    except HTTPException:
+        raise
+    except sqlite3.Error:
+        raise HTTPException(
+            status_code=503,
+            detail="The simulation could not access its local configuration.",
+        ) from None
+
+    return {
+        "simulation": result,
+        "audit_recorded": True,
+        "assessment_created": False,
+        "test_run_created": False,
+        "finding_created": False,
+        "evidence_persisted": False,
+    }
+
+
+
+def _redact_ai004_canary(value):
+    """Redact the synthetic canary from every nested API response value."""
+
+    if isinstance(value, dict):
+        return {
+            key: _redact_ai004_canary(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [_redact_ai004_canary(item) for item in value]
+
+    if isinstance(value, str):
+        return value.replace(
+            SYNTHETIC_MEMORY_CANARY,
+            "[REDACTED_SYNTHETIC_CANARY]",
+        )
+
+    return value
+
+@router.post("/simulations/AI-004/run")
+def execute_ai_004(
+    request: Request,
+    response: Response,
+    session_token: str | None = Cookie(
+        default=None,
+        alias=SESSION_COOKIE_NAME,
+    ),
+    csrf_token: str | None = Header(
+        default=None,
+        alias="X-CSRF-Token",
+    ),
+    user: AuthenticatedUser = Depends(get_simulation_user),
+    auth_service: LoginService = Depends(get_auth_service),
+) -> dict:
+    """Execute fixed AI-004 in memory; only its audit event is persisted."""
+
+    require_same_origin(request)
+    set_no_store(response)
+
+    if (
+        not session_token
+        or not csrf_token
+        or not auth_service.validate_csrf(
+            session_token,
+            csrf_token,
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="CSRF validation failed.",
+        )
+
+    require_execute_permission(user)
+
+    try:
+        with get_connection() as connection:
+            # Preserve the established disabled-target and mock-model boundary.
+            _verify_training_profiles(connection)
+
+            # Fixed synthetic memory scenario; no caller-supplied memory.
+            result = run_ai_004()
+
+            if result["evaluation"]["blue_team_control"] != "PASS":
+                raise HTTPException(
+                    status_code=500,
+                    detail="The AI-004 defensive evaluation did not pass.",
+                )
+
+            # Preserve the exposure indicator but never return the token.
+            result = _redact_ai004_canary(result)
+
+            # Only the scenario-specific audit event is persisted.
+            _audit_simulation(
+                connection,
+                user.user_id,
+                "AI-004",
             )
 
     except HTTPException:

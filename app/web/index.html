@@ -492,6 +492,48 @@
                                 <span class="button-arrow" aria-hidden="true">&#8594;</span>
                             </button>
                         </div>
+
+                    </section>
+
+                    <section class="assessment-scenario-card ai004-scenario-card">
+                        <div class="assessment-scenario-header">
+                            <div>
+                                <div class="eyebrow">SCENARIO AI-004</div>
+                                <h2>AI Agent Memory Poisoning &amp; Persistent Instruction Manipulation</h2>
+                                <p>Compare a vulnerable mock agent with a protected mock agent across two interactions. The scenario tests whether untrusted or modified memory can become a persistent instruction and influence later behavior.</p>
+                            </div>
+                            <span class="scenario-id-chip">AI-004</span>
+                        </div>
+
+                        <div class="assessment-facts">
+                            <div class="assessment-fact">
+                                <span>Memory lifecycle</span>
+                                <strong>Two synthetic interactions</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Trust validation</span>
+                                <strong>Provenance + SHA-256 + HMAC</strong>
+                            </div>
+                            <div class="assessment-fact">
+                                <span>Protected behavior</span>
+                                <strong>Validate, quarantine, re-check</strong>
+                            </div>
+                        </div>
+
+                        <div class="ai004-boundary-note">
+                            <div>
+                                <strong>SYNTHETIC MEMORY BOUNDARY</strong>
+                                <p>Only three fixed synthetic memory records are used. No personal memory, account data, external memory store, filesystem, network, or external AI provider is accessed. The HMAC key is embedded for demonstration only and is not production key management.</p>
+                            </div>
+                        </div>
+
+                        <div class="assessment-scenario-footer">
+                            <p>Only the fixed AI-004 scenario can be run. Client-supplied memory entries, source identifiers, prompts, and canaries are not accepted. Only one audit event is recorded; no assessment, test-run, finding, or evidence records are created.</p>
+                            <button id="run-ai004-button" class="primary-button assessment-run-button" type="button">
+                                <span>Run AI-004 simulation</span>
+                                <span class="button-arrow" aria-hidden="true">&#8594;</span>
+                            </button>
+                        </div>
                     </section>
 
                     <section id="assessment-results" class="assessment-results" hidden aria-live="polite">
@@ -784,11 +826,126 @@
                             <p id="ai003-limitations">The scenario limitations will appear here after execution.</p>
                             <p>This is a deterministic synthetic demonstration. It does not execute real tools or establish that a production AI agent is secure.</p>
                         </section>
+
+                    </section>
+
+                    <section id="ai004-results" class="assessment-results" hidden aria-live="polite">
+                        <div class="assessment-results-heading">
+                            <div>
+                                <div class="eyebrow">EXECUTION REPORT / AI-004</div>
+                                <h2>Memory integrity &amp; persistence results</h2>
+                                <p class="muted">A deterministic two-interaction simulation comparing vulnerable and protected memory handling.</p>
+                            </div>
+                            <span id="ai004-overall-status" class="assessment-outcome">Awaiting execution</span>
+                        </div>
+
+                        <div class="assessment-result-metadata">
+                            <div class="assessment-meta-card">
+                                <span>Execution type</span>
+                                <strong id="ai004-execution-type">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Interactions</span>
+                                <strong id="ai004-interaction-count">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Memory entries</span>
+                                <strong id="ai004-memory-count">&#8212;</strong>
+                            </div>
+                            <div class="assessment-meta-card">
+                                <span>Audit record</span>
+                                <strong id="ai004-audit-status">&#8212;</strong>
+                            </div>
+                        </div>
+
+                        <div class="assessment-result-grid ai004-agent-grid">
+                            <article class="simulation-result-card vulnerable-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip vulnerable">VULNERABLE AGENT</span>
+                                        <h3>Unverified memory handling</h3>
+                                    </div>
+                                    <span id="ai004-vulnerable-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The vulnerable mock stores memory without validating integrity, provenance, or instruction content. Later retrieval follows the poisoned instructions in this synthetic scenario.</p>
+                                <div class="result-field">
+                                    <span>Stored / quarantined</span>
+                                    <strong id="ai004-vulnerable-storage">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Persistent instructions followed</span>
+                                    <strong id="ai004-vulnerable-followed">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic canary</span>
+                                    <strong id="ai004-vulnerable-canary">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Memory ingestion and retrieval decisions</span>
+                                    <pre id="ai004-vulnerable-details" class="simulation-output ai004-memory-output">No result yet.</pre>
+                                </div>
+                            </article>
+
+                            <article class="simulation-result-card secure-result">
+                                <div class="simulation-result-header">
+                                    <div>
+                                        <span class="target-type-chip secure">PROTECTED AGENT</span>
+                                        <h3>Verified memory handling</h3>
+                                    </div>
+                                    <span id="ai004-secure-state" class="result-state">&#8212;</span>
+                                </div>
+                                <p class="result-description">The protected mock validates provenance, content integrity, source attestation, and instruction content. Unsafe entries are quarantined and revalidated before retrieval.</p>
+                                <div class="result-field">
+                                    <span>Stored / quarantined</span>
+                                    <strong id="ai004-secure-storage">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Retrieved / instructions followed</span>
+                                    <strong id="ai004-secure-retrieved">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Synthetic canary</span>
+                                    <strong id="ai004-secure-canary">&#8212;</strong>
+                                </div>
+                                <div class="result-field">
+                                    <span>Memory ingestion and retrieval decisions</span>
+                                    <pre id="ai004-secure-details" class="simulation-output ai004-memory-output">No result yet.</pre>
+                                </div>
+                            </article>
+                        </div>
+
+                        <section class="assessment-evaluation-card ai004-evaluation-card">
+                            <div class="eyebrow">BLUE TEAM EVALUATION</div>
+                            <h3>Memory trust and persistence controls</h3>
+                            <div class="evaluation-grid ai004-evaluation-grid">
+                                <div><span>Persistent instruction detected</span><strong id="ai004-injection-status">&#8212;</strong></div>
+                                <div><span>Untrusted provenance detected</span><strong id="ai004-provenance-status">&#8212;</strong></div>
+                                <div><span>Source attestation checks</span><strong id="ai004-attestation-status">&#8212;</strong></div>
+                                <div><span>Tampered memory detected</span><strong id="ai004-integrity-status">&#8212;</strong></div>
+                                <div><span>Trusted benign memory preserved</span><strong id="ai004-benign-status">&#8212;</strong></div>
+                                <div><span>Poisoned memory quarantined</span><strong id="ai004-poisoned-status">&#8212;</strong></div>
+                                <div><span>Tampered memory quarantined</span><strong id="ai004-tampered-status">&#8212;</strong></div>
+                                <div><span>Persistent instructions blocked</span><strong id="ai004-persistence-status">&#8212;</strong></div>
+                                <div><span>Protected canary disclosure</span><strong id="ai004-canary-status">&#8212;</strong></div>
+                                <div><span>Real-world side effects</span><strong id="ai004-side-effects-status">&#8212;</strong></div>
+                                <div><span>Blue Team control</span><strong id="ai004-controls-status">&#8212;</strong></div>
+                            </div>
+                            <div class="ai004-attestation-note" role="note">
+                                <strong>Cryptographic interpretation</strong>
+                                <p>A valid HMAC attestation does not make an untrusted source trusted. Provenance, integrity, and attestation are separate checks. The embedded demonstration key must not be used as a production secret.</p>
+                            </div>
+                        </section>
+
+                        <section class="assessment-limitations">
+                            <strong>Interpretation and limitations</strong>
+                            <p id="ai004-limitations">The scenario limitations will appear here after execution.</p>
+                            <p>This is a deterministic rule-based training simulation. It does not connect to real personal memory or establish production-grade protection against memory poisoning.</p>
+                        </section>
                     </section>
 
                     <footer class="workspace-footer assessment-footer">
                         <span>SENTINEL AI / CONTROLLED ASSESSMENT WORKSPACE</span>
-                        <span>AI-001 + AI-002 + AI-003 / DETERMINISTIC TRAINING</span>
+                        <span>AI-001 + AI-002 + AI-003 + AI-004 / DETERMINISTIC TRAINING</span>
                     </footer>
                 </section>
             </div>
