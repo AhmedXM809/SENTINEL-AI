@@ -11,6 +11,7 @@ from app.authentication.routes import router as authentication_router
 from app.api.targets import router as targets_router
 from app.api.assessments import router as assessments_router
 from app.api.history import router as history_router
+from app.api.assessment_management import router as assessment_management_router
 
 app = FastAPI(
     title="SENTINEL AI",
@@ -26,6 +27,7 @@ app.include_router(authentication_router)
 app.include_router(targets_router)
 app.include_router(assessments_router)
 app.include_router(history_router)
+app.include_router(assessment_management_router)
 
 
 @app.get("/", tags=["System"], include_in_schema=False)
