@@ -37,7 +37,7 @@
 
             <div class="intro-footer">
                 <span>LOCAL SECURITY WORKSPACE</span>
-                <span>VERSION 0.3.0</span>
+                <span>VERSION 0.4.0</span>
             </div>
         </section>
 
@@ -284,7 +284,7 @@
 
                 <footer class="workspace-footer">
                     <span>SENTINEL AI <span class="footer-separator">/</span> AI SECURITY TESTING &amp; DEFENSE PLATFORM</span>
-                    <span>LOCAL INSTANCE · V0.3.0</span>
+                    <span>LOCAL INSTANCE · V0.4.0</span>
                 </footer>
                 </div>
 
@@ -953,6 +953,7 @@
                 </section>
 
                     <section id="assessment-history-page" class="assessment-history-page" hidden>
+                        <div id="history-list-view">
                         <div class="targets-page-heading">
                             <div>
                                 <div class="eyebrow">INVESTIGATION / PERSISTED RECORDS</div>
@@ -1012,6 +1013,7 @@
                                         <th scope="col">Run status</th>
                                         <th scope="col">Created</th>
                                         <th scope="col">Completed</th>
+                                        <th scope="col">Report</th>
                                     </tr>
                                 </thead>
                                 <tbody id="history-table-body"></tbody>
@@ -1028,6 +1030,77 @@
                             <button id="history-prev-button" class="secondary-button" type="button" disabled>? Previous</button>
                             <button id="history-next-button" class="secondary-button" type="button" disabled>Next ?</button>
                         </div>
+
+
+                        </div>
+
+                        <section
+                            id="assessment-report-panel"
+                            class="assessment-report-panel"
+                            aria-labelledby="report-scenario-title"
+                            hidden
+                        >
+                            <div class="report-panel-heading">
+                                <div>
+                                    <div class="eyebrow">INVESTIGATION / SANITIZED REPORT</div>
+                                    <h2 id="report-scenario-title">Assessment report</h2>
+                                    <p id="report-assessment-id" class="report-record-id">Select an assessment to inspect its report.</p>
+                                </div>
+                                <button id="report-back-button" class="secondary-button" type="button">Back to history</button>
+                            </div>
+
+                            <div id="report-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+                            <div id="report-loading" class="report-loading" role="status" aria-live="polite" hidden>
+                                Loading sanitized assessment report...
+                            </div>
+
+                            <div id="report-content" hidden>
+                                <section class="report-result-banner">
+                                    <div>
+                                        <div class="eyebrow">DEFENSIVE CONTROL EVALUATION</div>
+                                        <h3 id="report-result-description">Evaluation result</h3>
+                                        <p>Deterministic synthetic simulation. This result is not a production security certification.</p>
+                                    </div>
+                                    <span id="report-result-status" class="report-status-badge">Unknown</span>
+                                </section>
+
+                                <div class="section-heading report-section-heading">
+                                    <div>
+                                        <div class="eyebrow">EXECUTION RECORD</div>
+                                        <h3>Assessment metadata</h3>
+                                    </div>
+                                </div>
+                                <div id="report-metadata-grid" class="report-metadata-grid"></div>
+
+                                <div class="section-heading report-section-heading">
+                                    <div>
+                                        <div class="eyebrow">CONTROL COMPARISON</div>
+                                        <h3>Vulnerable versus secure</h3>
+                                    </div>
+                                </div>
+                                <div id="report-comparison-grid" class="report-comparison-grid"></div>
+
+                                <div class="section-heading report-section-heading">
+                                    <div>
+                                        <div class="eyebrow">SCENARIO EVIDENCE</div>
+                                        <h3>Security metrics</h3>
+                                    </div>
+                                </div>
+                                <div id="report-metrics-grid" class="report-metrics-grid"></div>
+
+                                <section class="report-limitations-section">
+                                    <div class="section-heading report-section-heading">
+                                        <div>
+                                            <div class="eyebrow">SCOPE AND INTERPRETATION</div>
+                                            <h3>Limitations</h3>
+                                        </div>
+                                    </div>
+                                    <ul id="report-limitations" class="report-limitations"></ul>
+                                    <p id="report-scope-note" class="report-scope-note"></p>
+                                </section>
+                            </div>
+                        </section>
 
                         <footer class="workspace-footer assessment-footer">
                             <span>SENTINEL AI / READ-ONLY ASSESSMENT HISTORY</span>

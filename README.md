@@ -4,7 +4,7 @@
 **Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
 **Project status:** Local security-testing prototype
-**Application version:** 0.3.0
+**Application version:** 0.4.0
 **Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
 **Deployment:** Localhost-only
 
@@ -76,6 +76,8 @@ The frontend is served by FastAPI from `app/web/`. It provides the local applica
 
 The Assessment History workspace provides a paginated, read-only view of persisted assessment metadata. Access is controlled independently through `assessments.read`, so auditors can review records without simulation-execution permission. The list API excludes stored execution-result payloads and does not create or modify assessment, test-run, or audit records.
 
+The sanitized Assessment Report Viewer is available from each history row. It displays assessment and test-run metadata, scenario-specific vulnerable-versus-secure comparisons, allowlisted security metrics, and fixed scope limitations. The report API selects the latest completed test run and requires `assessments.read`. It constructs a new report from strict scenario-specific allowlists; raw execution JSON, simulated output, synthetic canaries, and raw tool or memory records are not exposed. Responses use `Cache-Control: no-store`. PDF export is not implemented.
+
 ### Database
 
 The application uses SQLite. The checked-in schema and migrations represent database versions 1 through 6. Application readiness requires schema version 6, 19 application tables, enabled foreign-key enforcement, and all four registered AI-001 through AI-004 scenario records.
@@ -133,6 +135,7 @@ The following are implemented routes, not the broader planned API specification.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/api/v1/assessments` | List assessment metadata with bounded pagination |
+| GET | `/api/v1/assessments/{assessment_id}/report` | Retrieve the sanitized report for the latest completed test run |
 
 The history endpoint requires `assessments.read`. It accepts `limit` (default 20, maximum 100) and `offset` (default 0). Its response contains allowlisted assessment and test-run summary fields only; it does not return the stored `execution_result` JSON. The operation is read-only and returns `Cache-Control: no-store`.
 
@@ -248,7 +251,7 @@ Report test results only after the command completes successfully in the environ
 
 ### Latest verified local test run ? November 7, 2026
 
-The full local test suite completed on November 7, 2026, with **198 passed, 124 subtests passed, 0 failures, and 54 warnings** in 2.62 seconds. The warnings concern Starlette TestClient per-request cookie deprecation.
+The full local test suite completed on November 7, 2026, with **216 passed, 172 subtests passed, 0 failures, and 65 warnings** in 3.34 seconds. The warnings concern Starlette TestClient per-request cookie deprecation.
 
 ## 7. Security Boundaries
 SENTINEL AI is an isolated training and demonstration project.
@@ -276,11 +279,11 @@ The following are not currently represented as completed features:
 - Persistent storage of simulation findings and evidence.
 - A complete risk-scoring engine.
 - MITRE ATLAS mapping.
-- PDF assessment report generation.
+- PDF export or downloadable PDF assessment reports.
 - A general security-event monitoring interface.
 - Production deployment and production-grade key management.
 
-Although the database contains assessment, test-run, finding, evidence, and security-event tables, the current simulation API is not a complete persistent assessment-management workflow. In particular, the AI-004 simulation records an audit event on a successful run; it does not create a complete persisted assessment, finding, or evidence record.
+Although the database contains assessment, test-run, finding, evidence, and security-event tables, the platform does not yet implement a complete general-purpose assessment-management workflow. The four registered simulations persist assessment and test-run records with sanitized execution results and an audit event. They do not currently create finding or evidence records.
 
 ## 9. Repository Structure
 

@@ -8,6 +8,8 @@
     let usingRecoveryCode = false;
     let assessmentHistoryOffset = 0;
     let assessmentHistoryRequest = 0;
+    let assessmentReportRequest = 0;
+    let activeAssessmentReportId = null;
     const ASSESSMENT_HISTORY_PAGE_SIZE = 10;
 
     class ApiError extends Error {
@@ -544,6 +546,427 @@
         return badge;
     }
 
+
+    const REPORT_COMPARISON_LABELS = {
+        "AI-001": {
+            blocked: "Request blocked",
+            control_triggered: "Defensive control triggered",
+            canary_disclosed: "Synthetic canary disclosed"
+        },
+        "AI-002": {
+            blocked: "Request blocked",
+            control_triggered: "Defensive control triggered",
+            canary_disclosed: "Synthetic canary disclosed",
+            document_treated_as_untrusted: "Document treated as untrusted"
+        },
+        "AI-003": {
+            accepted_count: "Requests accepted",
+            denied_count: "Requests denied",
+            canary_disclosed: "Synthetic canary disclosed",
+            execution_performed_count: "Simulated executions performed"
+        },
+        "AI-004": {
+            stored_count: "Memory records stored",
+            quarantined_count: "Memory records quarantined",
+            retrieved_count: "Memory records retrieved",
+            persistent_instructions_followed: "Persistent instructions followed",
+            canary_disclosed: "Synthetic canary disclosed"
+        }
+    };
+
+    const REPORT_METRIC_LABELS = {
+        "AI-001": {
+            injection_signature_detected: "Injection signature detected",
+            detection_rule_ids: "Detection rule identifiers"
+        },
+        "AI-002": {
+            indirect_injection_detected: "Indirect injection detected",
+            retrieved_document_content_returned: "Document content returned",
+            document_detection_rule_ids: "Document detection rule identifiers"
+        },
+        "AI-003": {
+            attempt_count: "Total simulated tool attempts",
+            real_tools_invoked: "Real tools invoked"
+        },
+        "AI-004": {
+            interaction_count: "Simulated interactions",
+            memory_entry_count: "Synthetic memory entries",
+            persistent_instruction_detected: "Persistent instruction detected",
+            untrusted_provenance_detected: "Untrusted provenance detected",
+            benign_source_attestation_valid: "Benign source attestation valid",
+            untrusted_source_attestation_valid: "Untrusted source attestation valid",
+            tampered_memory_detected: "Tampered memory detected",
+            trusted_benign_memory_preserved: "Trusted benign memory preserved",
+            poisoned_memory_quarantined: "Poisoned memory quarantined",
+            tampered_memory_quarantined: "Tampered memory quarantined",
+            vulnerable_agent_followed_persistent_instruction: "Vulnerable agent followed persistent instruction",
+            secure_agent_followed_persistent_instruction: "Secure agent followed persistent instruction",
+            vulnerable_agent_disclosed_canary: "Vulnerable agent disclosed synthetic canary",
+            secure_agent_disclosed_canary: "Secure agent disclosed synthetic canary"
+        }
+    };
+
+    function appendReportFact(container, label, value) {
+        let displayValue;
+
+        if (typeof value === "boolean") {
+            displayValue = value ? "Yes" : "No";
+        } else if (typeof value === "number" && Number.isSafeInteger(value)) {
+            displayValue = String(value);
+        } else if (typeof value === "string") {
+            displayValue = historyText(value, "Not recorded");
+        } else if (
+            Array.isArray(value)
+            && value.length <= 32
+            && value.every(item => typeof item === "string")
+        ) {
+            displayValue = value.length ? value.join(", ") : "None";
+        } else {
+            throw new ApiError("The assessment report contains an invalid value.", 502);
+        }
+
+        const card = document.createElement("article");
+        card.className = "report-fact-card";
+
+        const heading = document.createElement("span");
+        heading.className = "report-fact-label";
+        heading.textContent = label;
+
+        const content = document.createElement("strong");
+        content.className = "report-fact-value";
+        content.textContent = displayValue;
+
+        if (typeof value === "boolean") {
+            content.classList.add(value ? "positive" : "neutral");
+        }
+
+        card.append(heading, content);
+        container.appendChild(card);
+    }
+
+    function reportDateText(value) {
+        if (value === null) return "Not recorded";
+
+        if (typeof value !== "string") {
+            throw new ApiError("The assessment report contains invalid metadata.", 502);
+        }
+
+        return formatHistoryDate(value);
+    }
+
+    function renderReportMetadata(report) {
+        const assessment = report.assessment;
+        const testRun = report.test_run;
+
+        if (
+            !assessment
+            || typeof assessment !== "object"
+            || !testRun
+            || typeof testRun !== "object"
+        ) {
+            throw new ApiError("The assessment report metadata is invalid.", 502);
+        }
+
+        const fields = [
+            ["Assessment name", assessment.name],
+            ["Assessment ID", assessment.assessment_id],
+            ["Assessment status", assessment.status],
+            ["Assessment created", reportDateText(assessment.created_at)],
+            ["Assessment started", reportDateText(assessment.started_at)],
+            ["Assessment completed", reportDateText(assessment.completed_at)],
+            ["Test run ID", testRun.test_run_id],
+            ["Test run status", testRun.status],
+            ["Test run started", reportDateText(testRun.started_at)],
+            ["Test run completed", reportDateText(testRun.completed_at)]
+        ];
+
+        const container = byId("report-metadata-grid");
+        const fragment = document.createDocumentFragment();
+
+        for (const [label, value] of fields) {
+            if (typeof value !== "string") {
+                throw new ApiError("The assessment report contains invalid metadata.", 502);
+            }
+
+            const card = document.createElement("article");
+            card.className = "report-fact-card";
+
+            const heading = document.createElement("span");
+            heading.className = "report-fact-label";
+            heading.textContent = label;
+
+            const content = document.createElement("strong");
+            content.className = "report-fact-value";
+            content.textContent = historyText(value, "Not recorded");
+
+            card.append(heading, content);
+            fragment.appendChild(card);
+        }
+
+        container.replaceChildren(fragment);
+    }
+
+    function renderReportComparison(report) {
+        const scenarioCode = report.scenario.code;
+        const labels = REPORT_COMPARISON_LABELS[scenarioCode];
+        const comparison = report.comparison;
+
+        if (
+            !labels
+            || !comparison
+            || typeof comparison !== "object"
+            || Array.isArray(comparison)
+        ) {
+            throw new ApiError("The security comparison is invalid.", 502);
+        }
+
+        const container = byId("report-comparison-grid");
+        const fragment = document.createDocumentFragment();
+
+        const sideNames = [
+            ["vulnerable", scenarioCode === "AI-003" || scenarioCode === "AI-004"
+                ? "Vulnerable agent"
+                : "Vulnerable target"],
+            ["secure", scenarioCode === "AI-003" || scenarioCode === "AI-004"
+                ? "Secure agent"
+                : "Secure target"]
+        ];
+
+        for (const [sideKey, headingText] of sideNames) {
+            const side = comparison[sideKey];
+
+            if (
+                !side
+                || typeof side !== "object"
+                || Array.isArray(side)
+            ) {
+                throw new ApiError("The security comparison contains an invalid side.", 502);
+            }
+
+            const card = document.createElement("article");
+            card.className = `report-comparison-card ${sideKey}`;
+
+            const heading = document.createElement("h4");
+            heading.textContent = headingText;
+            card.appendChild(heading);
+
+            const facts = document.createElement("div");
+            facts.className = "report-facts-grid";
+
+            const entries = Object.entries(side);
+
+            if (!entries.length) {
+                throw new ApiError("The security comparison is empty.", 502);
+            }
+
+            for (const [key, value] of entries) {
+                if (!Object.prototype.hasOwnProperty.call(labels, key)) {
+                    throw new ApiError("The security comparison contains an unknown field.", 502);
+                }
+
+                appendReportFact(facts, labels[key], value);
+            }
+
+            card.appendChild(facts);
+            fragment.appendChild(card);
+        }
+
+        if (Object.keys(comparison).some(
+            key => key !== "vulnerable" && key !== "secure"
+        )) {
+            throw new ApiError("The security comparison contains unexpected fields.", 502);
+        }
+
+        container.replaceChildren(fragment);
+    }
+
+    function renderReportMetrics(report) {
+        const scenarioCode = report.scenario.code;
+        const labels = REPORT_METRIC_LABELS[scenarioCode];
+        const metrics = report.metrics;
+
+        if (
+            !labels
+            || !metrics
+            || typeof metrics !== "object"
+            || Array.isArray(metrics)
+        ) {
+            throw new ApiError("The scenario metrics are invalid.", 502);
+        }
+
+        const expectedFields = Object.keys(labels).sort();
+        const actualFields = Object.keys(metrics).sort();
+
+        if (
+            expectedFields.length !== actualFields.length
+            || expectedFields.some((field, index) => field !== actualFields[index])
+        ) {
+            throw new ApiError("The scenario metrics contain unexpected fields.", 502);
+        }
+
+        const container = byId("report-metrics-grid");
+        const fragment = document.createDocumentFragment();
+
+        for (const field of expectedFields) {
+            appendReportFact(
+                fragment,
+                labels[field],
+                metrics[field]
+            );
+        }
+
+        container.replaceChildren(fragment);
+    }
+
+    function renderReportLimitations(report) {
+        if (
+            !Array.isArray(report.limitations)
+            || report.limitations.length === 0
+            || report.limitations.length > 20
+            || !report.limitations.every(
+                item => typeof item === "string" && item.length <= 500
+            )
+            || !report.scope
+            || report.scope.simulation_only !== true
+        ) {
+            throw new ApiError("The report scope or limitations are invalid.", 502);
+        }
+
+        const list = byId("report-limitations");
+        const fragment = document.createDocumentFragment();
+
+        for (const limitation of report.limitations) {
+            const item = document.createElement("li");
+            item.textContent = limitation;
+            fragment.appendChild(item);
+        }
+
+        list.replaceChildren(fragment);
+
+        byId("report-scope-note").textContent =
+            "Simulation only. Synthetic evidence from deterministic mock scenarios. "
+            + "Results do not certify the security of a production AI system.";
+    }
+
+    function renderAssessmentReport(data) {
+        if (
+            !data
+            || typeof data !== "object"
+            || data.report_schema_version !== 1
+            || !data.scenario
+            || typeof data.scenario !== "object"
+            || !["AI-001", "AI-002", "AI-003", "AI-004"].includes(data.scenario.code)
+            || typeof data.scenario.name !== "string"
+            || !data.summary
+            || typeof data.summary !== "object"
+            || !["PASS", "FAIL"].includes(data.summary.blue_team_control)
+        ) {
+            throw new ApiError("The assessment report returned an invalid response.", 502);
+        }
+
+        byId("report-scenario-title").textContent =
+            `${data.scenario.code} ? ${data.scenario.name}`;
+
+        byId("report-assessment-id").textContent =
+            historyText(data.assessment && data.assessment.assessment_id, "Unknown assessment");
+
+        const result = data.summary.blue_team_control;
+        const resultBadge = byId("report-result-status");
+
+        resultBadge.textContent = result;
+        resultBadge.className = `report-status-badge ${result.toLowerCase()}`;
+
+        byId("report-result-description").textContent = result === "PASS"
+            ? "Defensive controls passed the defined simulation checks."
+            : "One or more defensive controls did not pass the defined simulation checks.";
+
+        renderReportMetadata(data);
+        renderReportComparison(data);
+        renderReportMetrics(data);
+        renderReportLimitations(data);
+    }
+
+    async function loadAssessmentReport(assessmentId) {
+        const safeId = historyText(assessmentId, "");
+
+        if (!safeId || safeId.length > 128) return;
+
+        const requestId = ++assessmentReportRequest;
+        activeAssessmentReportId = safeId;
+
+        byId("history-list-view").hidden = true;
+        byId("assessment-report-panel").hidden = false;
+        byId("report-content").hidden = true;
+        byId("report-loading").hidden = false;
+
+        byId("report-scenario-title").textContent = "Loading assessment report";
+        byId("report-assessment-id").textContent = safeId;
+
+        clearFeedback(byId("report-feedback"));
+
+        try {
+            const { data } = await apiRequest(
+                `/api/v1/assessments/${encodeURIComponent(safeId)}/report`
+            );
+
+            if (
+                requestId !== assessmentReportRequest
+                || activeAssessmentReportId !== safeId
+            ) {
+                return;
+            }
+
+            renderAssessmentReport(data);
+            byId("report-content").hidden = false;
+
+            window.scrollTo({
+                top: 0,
+                behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                    ? "auto"
+                    : "smooth"
+            });
+        } catch (error) {
+            if (
+                requestId !== assessmentReportRequest
+                || activeAssessmentReportId !== safeId
+            ) {
+                return;
+            }
+
+            if (error.status === 401) {
+                showLogin();
+                return;
+            }
+
+            const message = error.status === 403
+                ? "Your account does not have permission to view assessment reports."
+                : error.status === 404
+                    ? "No completed report is available for this assessment."
+                    : error.status === 503
+                        ? "Assessment report is temporarily unavailable."
+                        : "Assessment report could not be loaded or validated.";
+
+            showFeedback(byId("report-feedback"), message, "error");
+        } finally {
+            if (requestId === assessmentReportRequest) {
+                byId("report-loading").hidden = true;
+            }
+        }
+    }
+
+    function closeAssessmentReport() {
+        assessmentReportRequest += 1;
+        activeAssessmentReportId = null;
+
+        byId("assessment-report-panel").hidden = true;
+        byId("report-content").hidden = true;
+        byId("report-loading").hidden = true;
+        byId("history-list-view").hidden = false;
+
+        clearFeedback(byId("report-feedback"));
+        byId("history-refresh-button").focus();
+    }
+
     function renderAssessmentHistory(data) {
         if (
             !data
@@ -595,6 +1018,23 @@
 
             row.appendChild(createHistoryCell(formatHistoryDate(item.created_at)));
             row.appendChild(createHistoryCell(formatHistoryDate(item.completed_at)));
+
+            const actionCell = document.createElement("td");
+            const reportButton = document.createElement("button");
+            const reportId = historyText(item.assessment_id, "");
+
+            reportButton.type = "button";
+            reportButton.className = "secondary-button history-view-report-button";
+            reportButton.textContent = "View report";
+            reportButton.dataset.assessmentId = reportId;
+            reportButton.disabled = !reportId || reportId.length > 128;
+            reportButton.setAttribute(
+                "aria-label",
+                `View report for ${historyText(item.name, "assessment")}`
+            );
+
+            actionCell.appendChild(reportButton);
+            row.appendChild(actionCell);
 
             fragment.appendChild(row);
         }
@@ -704,6 +1144,13 @@
         const targetsSelected = selectedView === "targets";
         const assessmentsSelected = selectedView === "assessments";
         const historySelected = selectedView === "history";
+
+        if (!historySelected) {
+            assessmentReportRequest += 1;
+            activeAssessmentReportId = null;
+            byId("assessment-report-panel").hidden = true;
+            byId("history-list-view").hidden = false;
+        }
 
         byId("overview-page").hidden = !overviewSelected;
         byId("targets-page").hidden = !targetsSelected;
@@ -1675,6 +2122,22 @@
         void loadAssessmentHistory(
             assessmentHistoryOffset + ASSESSMENT_HISTORY_PAGE_SIZE
         );
+    });
+
+    byId("history-table-body").addEventListener("click", (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+        const button = target && target.closest(
+            "button[data-assessment-id]"
+        );
+
+        if (!button || !byId("history-table-body").contains(button)) return;
+        if (button.disabled) return;
+
+        void loadAssessmentReport(button.dataset.assessmentId);
+    });
+
+    byId("report-back-button").addEventListener("click", () => {
+        closeAssessmentReport();
     });
 
     window.addEventListener("hashchange", () => {

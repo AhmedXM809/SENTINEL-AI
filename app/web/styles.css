@@ -671,3 +671,317 @@ a { color: inherit; text-decoration: none; }
     .history-pagination { justify-content: stretch; }
     .history-pagination button { flex: 1; }
 }
+/* Assessment report viewer v0.4.0 */
+.assessment-report-panel {
+    min-width: 0;
+    animation: targets-in .2s ease-out;
+}
+
+.report-panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.report-panel-heading h2 {
+    margin: 9px 0 7px;
+    font-size: clamp(20px, 2.5vw, 27px);
+    letter-spacing: -.035em;
+}
+
+.report-panel-heading .report-record-id {
+    max-width: 650px;
+    margin: 0;
+    color: var(--subtle);
+    font-size: 9px;
+    overflow-wrap: anywhere;
+}
+
+.report-panel-heading button {
+    flex-shrink: 0;
+}
+
+.report-loading {
+    display: flex;
+    align-items: center;
+    min-height: 100px;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: rgba(12,26,43,.72);
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.report-result-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 22px 24px;
+    border: 1px solid var(--line-strong);
+    border-radius: 13px;
+    background: linear-gradient(
+        115deg,
+        rgba(16,42,54,.75),
+        rgba(12,26,43,.92)
+    );
+}
+
+.report-result-banner h3 {
+    margin: 9px 0 7px;
+    color: var(--text);
+    font-size: clamp(15px, 2vw, 19px);
+    letter-spacing: -.02em;
+}
+
+.report-result-banner p {
+    max-width: 620px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.report-status-badge {
+    flex-shrink: 0;
+    padding: 9px 15px;
+    border: 1px solid var(--line-strong);
+    border-radius: 30px;
+    color: var(--muted);
+    background: rgba(255,255,255,.025);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .12em;
+}
+
+.report-status-badge.pass {
+    color: #9ee3c1;
+    border-color: rgba(99,214,160,.35);
+    background: rgba(99,214,160,.08);
+}
+
+.report-status-badge.fail {
+    color: #ffc2c5;
+    border-color: rgba(255,137,144,.35);
+    background: rgba(255,137,144,.08);
+}
+
+.report-section-heading {
+    margin: 31px 0 13px;
+}
+
+.report-section-heading h3 {
+    margin: 7px 0 0;
+    color: #dce9f2;
+    font-size: 15px;
+}
+
+.report-metadata-grid,
+.report-comparison-grid,
+.report-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 11px;
+    min-width: 0;
+}
+
+.report-metadata-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+}
+
+.report-facts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    min-width: 0;
+}
+
+.report-fact-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 9px;
+    min-width: 0;
+    min-height: 77px;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(12,26,43,.72);
+}
+
+.report-fact-label {
+    color: #8299ae;
+    font-size: 9px;
+    line-height: 1.55;
+}
+
+.report-fact-value {
+    color: #dceaf3;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.report-comparison-card {
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: rgba(10,24,40,.78);
+}
+
+.report-comparison-card.vulnerable {
+    border-color: rgba(233,189,114,.24);
+    background: linear-gradient(
+        145deg,
+        rgba(65,48,30,.20),
+        rgba(10,24,40,.85)
+    );
+}
+
+.report-comparison-card.secure {
+    border-color: rgba(82,217,208,.25);
+    background: linear-gradient(
+        145deg,
+        rgba(16,64,65,.20),
+        rgba(10,24,40,.85)
+    );
+}
+
+.report-comparison-card h4 {
+    margin: 0 0 14px;
+    color: #dce9f2;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.report-comparison-card.vulnerable h4 {
+    color: var(--amber);
+}
+
+.report-comparison-card.secure h4 {
+    color: var(--cyan);
+}
+
+.report-limitations-section {
+    margin-top: 7px;
+    padding: 0 0 19px;
+}
+
+.report-limitations {
+    display: grid;
+    gap: 9px;
+    margin: 0;
+    padding-left: 20px;
+    color: #a3b6c6;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.report-limitations li::marker {
+    color: var(--cyan);
+}
+
+.report-scope-note {
+    margin: 17px 0 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(82,217,208,.16);
+    border-radius: 9px;
+    background: rgba(16,42,54,.30);
+    color: #91b8b8;
+    font-size: 9px;
+    line-height: 1.7;
+}
+
+.history-view-report-button {
+    min-height: 33px;
+    padding: 8px 11px;
+    border: 1px solid rgba(82,217,208,.30);
+    border-radius: 7px;
+    color: #a5e9e2;
+    background: rgba(82,217,208,.055);
+    font-size: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: border-color .18s, background .18s;
+}
+
+.history-view-report-button:hover:not(:disabled) {
+    border-color: rgba(82,217,208,.65);
+    background: rgba(82,217,208,.12);
+}
+
+.history-view-report-button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.history-view-report-button:focus-visible,
+.report-panel-heading button:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+}
+
+@media (max-width: 1000px) {
+    .report-metadata-grid,
+    .report-metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .report-panel-heading {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .report-panel-heading button {
+        align-self: flex-start;
+    }
+
+    .report-result-banner {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .report-comparison-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .report-metadata-grid,
+    .report-metrics-grid,
+    .report-facts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-result-banner,
+    .report-comparison-card {
+        padding: 15px;
+    }
+
+    .history-table {
+        min-width: 850px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .assessment-report-panel {
+        animation: none;
+    }
+
+    .history-view-report-button {
+        transition: none;
+    }
+}
