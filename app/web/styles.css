@@ -985,3 +985,176 @@ a { color: inherit; text-decoration: none; }
         transition: none;
     }
 }
+
+/* Draft assessment creator v0.6.0 */
+.assessment-draft-panel {
+    margin: 0 0 22px;
+    padding: 21px;
+    border: 1px solid rgba(82,217,208,.2);
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(15,38,55,.92), rgba(10,25,41,.9));
+}
+.draft-assessment-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+.draft-assessment-heading h2 {
+    margin: 8px 0 6px;
+    color: #e1edf4;
+    font-size: 18px;
+    letter-spacing: -.025em;
+}
+.draft-assessment-heading p {
+    margin: 0;
+    color: #8da3b5;
+    font-size: 10px;
+    line-height: 1.7;
+}
+.draft-assessment-panel .feedback {
+    margin-bottom: 15px;
+}
+.draft-assessment-form {
+    display: grid;
+    gap: 19px;
+}
+.draft-form-field {
+    display: grid;
+    gap: 7px;
+    max-width: 560px;
+}
+.draft-form-field > label,
+.draft-scenario-fieldset legend {
+    color: #c5d7e3;
+    font-size: 10px;
+    font-weight: 700;
+}
+.draft-assessment-name-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    outline: none;
+    background: rgba(5,17,30,.72);
+    color: #e1edf4;
+    font: inherit;
+    font-size: 11px;
+}
+.draft-assessment-name-input:focus {
+    border-color: rgba(82,217,208,.65);
+    box-shadow: 0 0 0 3px rgba(82,217,208,.08);
+}
+.draft-assessment-name-input::placeholder {
+    color: #627b90;
+}
+.draft-field-hint {
+    color: #71899d;
+    font-size: 9px;
+}
+.draft-scenario-fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.draft-scenario-fieldset legend {
+    width: 100%;
+    margin-bottom: 10px;
+}
+.draft-scenario-fieldset legend span {
+    margin-left: 8px;
+    color: #6f91a5;
+    font-size: 8px;
+    letter-spacing: .08em;
+}
+.draft-scenario-options {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 9px;
+}
+.draft-scenario-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 57px;
+    padding: 10px 11px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: rgba(7,20,34,.62);
+    cursor: pointer;
+}
+.draft-scenario-option:has(input:checked) {
+    border-color: rgba(82,217,208,.48);
+    background: rgba(82,217,208,.055);
+}
+.draft-scenario-option input {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--cyan);
+}
+.draft-scenario-option span {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.draft-scenario-option strong {
+    color: #cce0e9;
+    font-size: 10px;
+}
+.draft-scenario-option small {
+    color: #7992a7;
+    font-size: 8px;
+    line-height: 1.4;
+}
+.draft-submit-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.draft-create-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 45px;
+    width: auto;
+    padding: 0 16px;
+}
+.draft-assessment-note {
+    flex: 1 1 260px;
+    margin: 0;
+    color: #829aab;
+    font-size: 9px;
+    line-height: 1.65;
+}
+.assessment-draft-panel[hidden],
+.assessment-scenario-card[hidden],
+#assessment-results[hidden] {
+    display: none !important;
+}
+@media (max-width: 760px) {
+    .draft-scenario-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .draft-assessment-heading {
+        flex-direction: column;
+    }
+}
+@media (max-width: 460px) {
+    .assessment-draft-panel {
+        padding: 15px;
+    }
+    .draft-scenario-options {
+        grid-template-columns: 1fr;
+    }
+    .draft-create-button {
+        width: 100%;
+    }
+}

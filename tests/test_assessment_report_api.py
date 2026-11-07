@@ -206,7 +206,10 @@ class TestAssessmentReportAPI(unittest.TestCase):
             JOIN test_cases tc
                 ON tc.id = tr.test_case_id
 
-            ORDER BY tc.scenario_code
+            WHERE a.status = 'completed'
+              AND tr.status = 'completed'
+              AND tr.execution_result IS NOT NULL
+            ORDER BY tc.scenario_code, a.created_at, tr.completed_at, a.id, tr.id
         """).fetchall()
 
         self.records = {

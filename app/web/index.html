@@ -239,7 +239,7 @@
                         <div class="module-icon blue">◎</div>
                         <div class="module-status">AVAILABLE</div>
                         <h3>AI Assessments</h3>
-                        <p>Run the controlled AI-001 prompt-injection training simulation against isolated mock targets.</p>
+                        <p>Create draft assessments from approved scenarios and access controlled simulations when your role allows.</p>
                         <span class="module-link">Open assessment workspace <span>↗</span></span>
                     </a>
                     <article class="module-card">
@@ -365,7 +365,7 @@
                         <div>
                             <div class="eyebrow">BLUE TEAM / CONTROLLED VALIDATION</div>
                             <h1>AI Security Assessments<span class="title-period">.</span></h1>
-                            <p class="muted">Run a fixed, deterministic training scenario against isolated mock targets.</p>
+                            <p class="muted">Create draft assessments from approved scenarios and access controlled simulations according to your permissions.</p>
                         </div>
                         <div class="assessment-heading-tag">LOCAL SIMULATION ONLY</div>
                     </div>
@@ -376,10 +376,73 @@
                         <span class="assessment-safety-icon" aria-hidden="true">!</span>
                         <div>
                             <strong>Controlled simulation boundary</strong>
-                            <p>This scenario uses synthetic input and a deterministic local training engine. It does not call an external AI provider, enable target profiles, or persist assessment results. A successful execution adds one audit-log entry.</p>
+                            <p>This workspace uses synthetic input and deterministic local training. Running an individual scenario does not call an external AI provider or enable target profiles; a successful run adds an audit-log entry. Creating a draft stores assessment and queued scenario records with a creation audit event, but does not execute tests.</p>
                         </div>
                     </section>
 
+                    <section id="assessment-draft-panel" class="assessment-draft-panel" aria-labelledby="draft-assessment-title" hidden>
+                        <div class="draft-assessment-heading">
+                            <div>
+                                <div class="eyebrow">ASSESSMENT MANAGEMENT / DRAFT MODE</div>
+                                <h2 id="draft-assessment-title">Create an assessment draft</h2>
+                                <p>Choose a name and one or more approved training scenarios.</p>
+                            </div>
+                            <span class="scenario-id-chip">NO EXECUTION</span>
+                        </div>
+
+                        <div id="draft-assessment-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+                        <form id="draft-assessment-form" class="draft-assessment-form" novalidate>
+                            <div class="draft-form-field">
+                                <label for="draft-assessment-name">Assessment name</label>
+                                <input
+                                    id="draft-assessment-name"
+                                    class="draft-assessment-name-input"
+                                    name="name"
+                                    type="text"
+                                    minlength="3"
+                                    maxlength="120"
+                                    autocomplete="off"
+                                    placeholder="Example: AI security baseline assessment"
+                                    required
+                                >
+                                <span class="draft-field-hint">Use between 3 and 120 characters.</span>
+                            </div>
+
+                            <fieldset class="draft-scenario-fieldset">
+                                <legend>Approved scenarios <span>SELECT 1–4</span></legend>
+                                <div class="draft-scenario-options">
+                                    <label class="draft-scenario-option">
+                                        <input type="checkbox" name="scenario_codes" value="AI-001">
+                                        <span><strong>AI-001</strong><small>Direct prompt injection</small></span>
+                                    </label>
+                                    <label class="draft-scenario-option">
+                                        <input type="checkbox" name="scenario_codes" value="AI-002">
+                                        <span><strong>AI-002</strong><small>Indirect prompt injection</small></span>
+                                    </label>
+                                    <label class="draft-scenario-option">
+                                        <input type="checkbox" name="scenario_codes" value="AI-003">
+                                        <span><strong>AI-003</strong><small>Agent tool misuse</small></span>
+                                    </label>
+                                    <label class="draft-scenario-option">
+                                        <input type="checkbox" name="scenario_codes" value="AI-004">
+                                        <span><strong>AI-004</strong><small>Memory integrity</small></span>
+                                    </label>
+                                </div>
+                            </fieldset>
+
+                            <div class="draft-submit-row">
+                                <button id="draft-assessment-submit" class="primary-button draft-create-button" type="submit">
+                                    <span id="draft-assessment-submit-label">Create draft assessment</span>
+                                    <span class="button-arrow" aria-hidden="true">&#8594;</span>
+                                </button>
+                                <p class="draft-assessment-note">
+                                    Creating a draft saves the assessment and queues the selected scenarios.
+                                    It does not start a simulation.
+                                </p>
+                            </div>
+                        </form>
+                    </section>
                     <section class="assessment-scenario-card">
                         <div class="assessment-scenario-header">
                             <div>

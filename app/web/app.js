@@ -1022,12 +1022,15 @@
             const actionCell = document.createElement("td");
             const reportButton = document.createElement("button");
             const reportId = historyText(item.assessment_id, "");
+            const reportAvailable =
+                item.assessment_status === "completed"
+                && item.test_run_status === "completed";
 
             reportButton.type = "button";
             reportButton.className = "secondary-button history-view-report-button";
-            reportButton.textContent = "View report";
+            reportButton.textContent = reportAvailable ? "View report" : "Report pending";
             reportButton.dataset.assessmentId = reportId;
-            reportButton.disabled = !reportId || reportId.length > 128;
+            reportButton.disabled = !reportId || reportId.length > 128 || !reportAvailable;
             reportButton.setAttribute(
                 "aria-label",
                 `View report for ${historyText(item.name, "assessment")}`
@@ -1103,6 +1106,118 @@
         }
     }
 
+    async function createAssessmentDraft() {
+        const form = byId("draft-assessment-form");
+        const button = byId("draft-assessment-submit");
+        const label = byId("draft-assessment-submit-label");
+        const feedback = byId("draft-assessment-feedback");
+
+        if (button.disabled) return;
+
+        const permissions = Array.isArray(currentUser?.permissions)
+            ? currentUser.permissions
+            : [];
+
+        if (!permissions.includes("assessments.create")) {
+            showFeedback(
+                feedback,
+                "Your account does not have assessment-creation permission.",
+                "error"
+            );
+            return;
+        }
+
+        const name = byId("draft-assessment-name").value.trim();
+        const nameLength = Array.from(name).length;
+        const scenarioCodes = Array.from(
+            form.querySelectorAll('input[name="scenario_codes"]:checked')
+        ).map((input) => input.value);
+
+        if (nameLength < 3 || nameLength > 120) {
+            showFeedback(
+                feedback,
+                "Assessment name must contain between 3 and 120 characters.",
+                "error"
+            );
+            byId("draft-assessment-name").focus();
+            return;
+        }
+
+        if (scenarioCodes.length < 1 || scenarioCodes.length > 4) {
+            showFeedback(
+                feedback,
+                "Select between one and four approved scenarios.",
+                "error"
+            );
+            return;
+        }
+
+        clearFeedback(feedback);
+        button.disabled = true;
+        label.textContent = "Creating draft...";
+
+        try {
+            const { data } = await apiRequest("/api/v1/assessments", {
+                method: "POST",
+                csrf: true,
+                body: {
+                    name,
+                    scenario_codes: scenarioCodes
+                }
+            });
+
+            const returnedCodes = Array.isArray(data.scenario_codes)
+                ? data.scenario_codes
+                : [];
+            const createdRuns = Array.isArray(data.test_runs)
+                ? data.test_runs
+                : [];
+            const createdRunCodes = createdRuns.map(
+                (run) => run && run.scenario_code
+            );
+
+            const validResponse =
+                typeof data.assessment_id === "string"
+                && data.status === "draft"
+                && data.execution_started === false
+                && data.audit_recorded === true
+                && returnedCodes.length === scenarioCodes.length
+                && scenarioCodes.every((code) => returnedCodes.includes(code))
+                && createdRuns.length === scenarioCodes.length
+                && createdRuns.every((run) =>
+                    run
+                    && run.status === "queued"
+                    && scenarioCodes.includes(run.scenario_code)
+                )
+                && new Set(createdRunCodes).size === scenarioCodes.length;
+
+            if (!validResponse) {
+                throw new ApiError(
+                    "The server returned an unexpected draft-creation response.",
+                    502
+                );
+            }
+
+            form.reset();
+
+            showFeedback(
+                feedback,
+                `Draft created successfully. Assessment ID: ${data.assessment_id}. `
+                    + `Scenarios queued: ${returnedCodes.join(", ")}. `
+                    + "No simulation was executed.",
+                "info"
+            );
+        } catch (error) {
+            const message = error instanceof ApiError
+                ? error.message
+                : "The draft could not be created. Check your connection and try again.";
+
+            showFeedback(feedback, message, "error");
+        } finally {
+            button.disabled = false;
+            label.textContent = "Create draft assessment";
+        }
+    }
     function applyCurrentView() {
         if (!currentUser) return;
 
@@ -1112,8 +1227,10 @@
 
         const canReadTargets = permissions.includes("targets.read");
         const canReadAssessmentHistory = permissions.includes("assessments.read");
+        const canCreateAssessments = permissions.includes("assessments.create");
         const canExecuteAssessments = permissions.includes("assessments.execute")
             && permissions.includes("targets.read");
+        const canAccessAssessments = canCreateAssessments || canExecuteAssessments;
         let selectedView = window.location.hash.replace(/^#/, "");
 
         if (!["targets", "assessments", "history", "overview"].includes(selectedView)) {
@@ -1125,8 +1242,8 @@
             deniedMessage = "Your role does not have permission to view AI targets.";
             selectedView = "overview";
         }
-        if (selectedView === "assessments" && !canExecuteAssessments) {
-            deniedMessage = "Your role does not have permission to execute AI security assessments.";
+        if (selectedView === "assessments" && !canAccessAssessments) {
+            deniedMessage = "Your role does not have permission to create or execute AI security assessments.";
             selectedView = "overview";
         }
         if (selectedView === "history" && !canReadAssessmentHistory) {
@@ -1156,15 +1273,22 @@
         byId("targets-page").hidden = !targetsSelected;
         byId("assessments-page").hidden = !assessmentsSelected;
         byId("assessment-history-page").hidden = !historySelected;
+        byId("assessment-draft-panel").hidden = !canCreateAssessments;
+        byId("assessments-page").querySelectorAll(".assessment-scenario-card").forEach((card) => {
+            card.hidden = !canExecuteAssessments;
+        });
+        if (!canExecuteAssessments) {
+            byId("assessment-results").hidden = true;
+        }
 
         byId("overview-nav").classList.toggle("active", overviewSelected);
         byId("targets-nav").hidden = !canReadTargets;
         byId("targets-nav").classList.toggle("active", targetsSelected);
-        byId("assessments-nav").hidden = !canExecuteAssessments;
+        byId("assessments-nav").hidden = !canAccessAssessments;
         byId("assessments-nav").classList.toggle("active", assessmentsSelected);
         byId("history-nav").hidden = !canReadAssessmentHistory;
         byId("history-nav").classList.toggle("active", historySelected);
-        byId("assessments-module-card").hidden = !canExecuteAssessments;
+        byId("assessments-module-card").hidden = !canAccessAssessments;
 
         byId("overview-nav").setAttribute("aria-current", overviewSelected ? "page" : "false");
         byId("targets-nav").setAttribute("aria-current", targetsSelected ? "page" : "false");
@@ -2105,6 +2229,11 @@
 
     byId("run-ai004-button").addEventListener("click", () => {
         void runAI004();
+    });
+
+    byId("draft-assessment-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        void createAssessmentDraft();
     });
 
     byId("history-refresh-button").addEventListener("click", () => {

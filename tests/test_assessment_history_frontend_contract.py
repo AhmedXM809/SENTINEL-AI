@@ -56,7 +56,7 @@ class TestAssessmentHistoryFrontendContract(unittest.TestCase):
 
     def test_assessment_execution_permission_remains_separate(self):
         self.assertIn(
-            'permissions.includes("assessments.execute")',
+            'const canCreateAssessments = permissions.includes("assessments.create");',
             JS,
         )
         self.assertIn(
@@ -64,9 +64,42 @@ class TestAssessmentHistoryFrontendContract(unittest.TestCase):
             JS,
         )
         self.assertIn(
-            'byId("assessments-nav").hidden = !canExecuteAssessments;',
+            'const canAccessAssessments = canCreateAssessments || canExecuteAssessments;',
             JS,
         )
+        self.assertIn(
+            'byId("assessments-nav").hidden = !canAccessAssessments;',
+            JS,
+        )
+        self.assertIn(
+            'byId("assessment-draft-panel").hidden = !canCreateAssessments;',
+            JS,
+        )
+        self.assertIn(
+            'card.hidden = !canExecuteAssessments;',
+            JS,
+        )
+        self.assertEqual(
+            JS.count('!permissions.includes("assessments.execute")'),
+            4,
+        )
+
+    def test_draft_creation_uses_create_permission_and_csrf_protected_post(self):
+        self.assertIn(
+            'if (!permissions.includes("assessments.create"))',
+            JS,
+        )
+        self.assertIn(
+            'apiRequest("/api/v1/assessments", {',
+            JS,
+        )
+        self.assertIn('method: "POST",', JS)
+        self.assertIn('csrf: true,', JS)
+        self.assertIn('scenario_codes: scenarioCodes', JS)
+        self.assertIn('data.execution_started === false', JS)
+
+        self.assertIn('id="draft-assessment-form"', HTML)
+        self.assertIn('id="assessment-draft-panel"', HTML)
 
     def test_history_loader_calls_paginated_read_only_api(self):
         self.assertIn("ASSESSMENT_HISTORY_PAGE_SIZE = 10", JS)
@@ -175,11 +208,30 @@ class TestAssessmentHistoryFrontendContract(unittest.TestCase):
         )
 
         self.assertIn(
-            'reportButton.textContent = "View report";',
+            'reportButton.textContent = reportAvailable ? "View report" : "Report pending";',
             JS,
         )
         self.assertIn(
             "reportButton.dataset.assessmentId = reportId;",
+            JS,
+        )
+
+
+    def test_history_report_action_requires_completed_assessment_and_run(self):
+        self.assertIn(
+            'item.assessment_status === "completed"',
+            JS,
+        )
+        self.assertIn(
+            'item.test_run_status === "completed"',
+            JS,
+        )
+        self.assertIn(
+            'reportButton.disabled = !reportId || reportId.length > 128 || !reportAvailable;',
+            JS,
+        )
+        self.assertIn(
+            'reportButton.textContent = reportAvailable ? "View report" : "Report pending";',
             JS,
         )
 
