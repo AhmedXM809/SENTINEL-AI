@@ -617,6 +617,21 @@
         }
     });
 
+    function hasPersistedHistory(data) {
+        return (
+            data?.audit_recorded === true
+            && data?.history_persisted === true
+            && data?.assessment_created === true
+            && data?.test_run_created === true
+            && typeof data?.assessment_id === "string"
+            && data.assessment_id.length > 0
+            && typeof data?.test_run_id === "string"
+            && data.test_run_id.length > 0
+            && data?.finding_created === false
+            && data?.evidence_persisted === false
+        );
+    }
+
     function renderAI001Results(data) {
         const result = data?.simulation;
         if (
@@ -632,8 +647,11 @@
         const vulnerable = result.vulnerable_target;
         const secure = result.secure_target;
         const evaluation = result.evaluation;
+        const persistenceValid = hasPersistedHistory(data);
+
         const passed = (
-            evaluation.blue_team_control === "PASS"
+            persistenceValid
+            && evaluation.blue_team_control === "PASS"
             && evaluation.secure_target_blocked === true
             && evaluation.vulnerable_target_disclosed_canary === true
             && evaluation.secure_target_disclosed_canary === false
@@ -645,9 +663,9 @@
 
         byId("ai001-execution-type").textContent = String(result.execution_type || "Not reported");
         byId("ai001-input-classification").textContent = String(result.input_classification || "Not reported");
-        byId("ai001-audit-status").textContent = data.audit_recorded === true
-            ? "Recorded in local audit log"
-            : "Audit record not confirmed";
+        byId("ai001-audit-status").textContent = persistenceValid
+            ? "Audit and assessment history saved"
+            : "History save not confirmed";
 
         const vulnerableState = byId("ai001-vulnerable-state");
         vulnerableState.textContent = vulnerable.blocked ? "BLOCKED" : "NOT BLOCKED";
@@ -702,7 +720,7 @@
         const confirmed = window.confirm(
             "Run the fixed AI-001 deterministic training simulation?\n\n"
             + "It uses synthetic data and a local mock engine only.\n"
-            + "It records one audit entry, but does not persist the result, create assessment or finding records, enable targets, or call an external AI provider.\n\n"
+            + "A sanitized simulation result, assessment, test run, and audit entry are saved locally. No findings or evidence records are created. Targets remain disabled and no external AI provider is contacted.\n\n"
             + "Continue?"
         );
         if (!confirmed) return;
@@ -723,7 +741,7 @@
             renderAI001Results(data);
             showFeedback(
                 byId("assessment-feedback"),
-                "AI-001 completed. The result is displayed in memory; only the audit event was recorded.",
+                "AI-001 completed. The sanitized result, assessment history, and audit event were saved locally; no findings or evidence records were created.",
                 "info"
             );
             scrollToSimulationResults("assessment-results");
@@ -777,8 +795,11 @@
             ? secure.detection_rule_ids
             : [];
 
+        const persistenceValid = hasPersistedHistory(data);
+
         const passed = (
-            evaluation.blue_team_control === "PASS"
+            persistenceValid
+            && evaluation.blue_team_control === "PASS"
             && evaluation.indirect_injection_detected === true
             && evaluation.vulnerable_target_disclosed_canary === true
             && evaluation.secure_target_blocked === true
@@ -793,9 +814,9 @@
 
         byId("ai002-execution-type").textContent = String(result.execution_type || "Not reported");
         byId("ai002-document-id").textContent = String(result.retrieved_document_id || "Not reported");
-        byId("ai002-audit-status").textContent = data.audit_recorded === true
-            ? "Recorded in local audit log"
-            : "Audit record not confirmed";
+        byId("ai002-audit-status").textContent = persistenceValid
+            ? "Audit and assessment history saved"
+            : "History save not confirmed";
 
         byId("ai002-override-status").textContent = inspectionRules.includes("RAG-INDIRECT-OVERRIDE") ? "Detected" : "Not detected";
         byId("ai002-role-status").textContent = inspectionRules.includes("RAG-ROLE-ESCALATION") ? "Detected" : "Not detected";
@@ -860,8 +881,8 @@
         const confirmed = window.confirm(
             "Run the fixed AI-002 indirect prompt-injection simulation?\n\n"
             + "It uses one synthetic retrieved document and a deterministic local mock only.\n"
-            + "The raw document is not returned or stored. One audit entry is recorded; "
-            + "no assessment, test-run, finding, or evidence records are created. "
+            + "The raw retrieved document is not returned or stored. A sanitized assessment history and audit entry are saved locally; "
+            + "no finding or evidence records are created. "
             + "Targets remain disabled and no external AI provider is contacted.\n\n"
             + "Continue?"
         );
@@ -883,7 +904,7 @@
             renderAI002Results(data);
             showFeedback(
                 byId("assessment-feedback"),
-                "AI-002 completed. The result is displayed in memory; only the audit event was recorded.",
+                "AI-002 completed. The sanitized result, assessment history, and audit event were saved locally; no findings or evidence records were created.",
                 "info"
             );
             scrollToSimulationResults("ai002-results");
@@ -1038,8 +1059,11 @@
             && result.real_accounts_modified === false
         );
 
+        const persistenceValid = hasPersistedHistory(data);
+
         const passed = (
-            result.simulation_only === true
+            persistenceValid
+            && result.simulation_only === true
             && result.persisted === false
             && result.attempt_count === 4
             && vulnerableResults.length === 4
@@ -1066,9 +1090,9 @@
 
         byId("ai003-execution-type").textContent = "Deterministic in-memory mock";
         byId("ai003-attempt-count").textContent = String(result.attempt_count ?? "Not reported");
-        byId("ai003-audit-status").textContent = data.audit_recorded === true
-            ? "Recorded in local audit log"
-            : "Audit record not confirmed";
+        byId("ai003-audit-status").textContent = persistenceValid
+            ? "Audit and assessment history saved"
+            : "History save not confirmed";
 
         const vulnerableState = byId("ai003-vulnerable-state");
         vulnerableState.textContent = `${vulnerableAccepted} / 4 ACCEPTED`;
@@ -1146,7 +1170,7 @@
             "Run the fixed AI-003 agent tool-misuse simulation?\n\n"
             + "It evaluates four synthetic tool requests against vulnerable and protected mock agents.\n"
             + "No real shell, filesystem, network, or account operations are performed. "
-            + "Only one audit event is recorded; no assessment, test-run, finding, or evidence "
+            + "A sanitized assessment history and audit event are saved locally; no finding or evidence "
             + "records are created. No external AI provider is contacted.\n\n"
             + "Continue?"
         );
@@ -1169,7 +1193,7 @@
             renderAI003Results(data);
             showFeedback(
                 byId("assessment-feedback"),
-                "AI-003 completed. The report is displayed in memory; only the audit event was recorded.",
+                "AI-003 completed. The sanitized report, assessment history, and audit event were saved locally; no findings or evidence records were created.",
                 "info"
             );
             scrollToSimulationResults("ai003-results");
@@ -1294,13 +1318,7 @@
             && secure.canary_exposed === false
         );
 
-        const persistenceValid = (
-            data.audit_recorded === true
-            && data.assessment_created === false
-            && data.test_run_created === false
-            && data.finding_created === false
-            && data.evidence_persisted === false
-        );
+        const persistenceValid = hasPersistedHistory(data);
 
         const passed = (
             expectedEvaluation
@@ -1324,10 +1342,9 @@
             value(result.interaction_count);
         byId("ai004-memory-count").textContent =
             value(result.memory_entry_count);
-        byId("ai004-audit-status").textContent =
-            data.audit_recorded === true
-                ? "Recorded in local audit log"
-                : "Audit record not confirmed";
+        byId("ai004-audit-status").textContent = persistenceValid
+            ? "Audit and assessment history saved"
+            : "History save not confirmed";
 
         const vulnerableState = byId("ai004-vulnerable-state");
         vulnerableState.textContent = vulnerable.persistent_instructions_followed === 2
@@ -1428,7 +1445,7 @@
             "Run the fixed AI-004 memory-poisoning simulation?\n\n"
             + "It compares vulnerable and protected mock agents across two synthetic interactions.\n"
             + "No real personal memory, database memory, filesystem, network, or external AI provider is accessed. "
-            + "Only one audit event is recorded; no assessment, test-run, finding, or evidence records are created.\n\n"
+            + "A sanitized assessment history and audit event are saved locally; no finding or evidence records are created.\n\n"
             + "Continue?"
         );
         if (!confirmed) return;
@@ -1450,7 +1467,7 @@
             renderAI004Results(data);
             showFeedback(
                 byId("assessment-feedback"),
-                "AI-004 completed. The report is displayed in memory; only the audit event was recorded.",
+                "AI-004 completed. The sanitized report, assessment history, and audit event were saved locally; no findings or evidence records were created.",
                 "info"
             );
             scrollToSimulationResults("ai004-results");

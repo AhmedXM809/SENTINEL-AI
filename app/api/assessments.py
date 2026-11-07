@@ -1,4 +1,4 @@
-"""Controlled, non-persistent AI security simulations."""
+"""Controlled AI security simulations with sanitized history persistence."""
 
 import json
 import sqlite3
@@ -22,8 +22,18 @@ from app.authentication.routes import (
     set_no_store,
 )
 from app.authentication.service import AuthenticatedUser, LoginService
-from app.core.ai_security import run_ai_001
-from app.core.ai003_tool_misuse import run_ai_003
+from app.core.ai_security import (
+    SYNTHETIC_CANARY as AI001_SYNTHETIC_CANARY,
+    run_ai_001,
+)
+from app.core.ai002_indirect import (
+    SYNTHETIC_RAG_CANARY,
+    run_ai_002,
+)
+from app.core.ai003_tool_misuse import (
+    SYNTHETIC_CANARY as AI003_SYNTHETIC_CANARY,
+    run_ai_003,
+)
 from app.core.ai004_memory_poisoning import (
     SYNTHETIC_MEMORY_CANARY,
     run_ai_004,
@@ -104,6 +114,154 @@ def _audit_simulation(connection, user_id: str, scenario_id: str) -> None:
             now,
         ),
     )
+
+
+def _redact_synthetic_canaries(value):
+    """Recursively redact all four fixed synthetic canary values."""
+
+    canaries = (
+        AI001_SYNTHETIC_CANARY,
+        SYNTHETIC_RAG_CANARY,
+        AI003_SYNTHETIC_CANARY,
+        SYNTHETIC_MEMORY_CANARY,
+    )
+
+    if isinstance(value, dict):
+        return {
+            _redact_synthetic_canaries(key):
+            _redact_synthetic_canaries(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [_redact_synthetic_canaries(item) for item in value]
+
+    if isinstance(value, tuple):
+        return tuple(_redact_synthetic_canaries(item) for item in value)
+
+    if isinstance(value, str):
+        for canary in canaries:
+            value = value.replace(
+                canary,
+                "[REDACTED_SYNTHETIC_CANARY]",
+            )
+        return value
+
+    return value
+
+
+def _persist_simulation_history(
+    connection,
+    user_id: str,
+    scenario_id: str,
+    simulation_result: dict,
+) -> dict:
+    """Persist one completed assessment, test run, and audit event atomically."""
+
+    scenario_records = {
+        "AI-001": "test-case-ai-001",
+        "AI-002": "test-case-ai-002",
+        "AI-003": "test-case-ai-003",
+        "AI-004": "test-case-ai-004",
+    }
+
+    test_case_id = scenario_records.get(scenario_id)
+    if test_case_id is None:
+        raise ValueError("Unsupported simulation scenario.")
+
+    assessment_id = str(uuid4())
+    test_run_id = str(uuid4())
+
+    now = (
+        datetime.now(timezone.utc)
+        .isoformat(timespec="seconds")
+        .replace("+00:00", "Z")
+    )
+
+    safe_result = _redact_synthetic_canaries(simulation_result)
+
+    assessment_name = (
+        f"{scenario_id} - "
+        f"{safe_result.get('scenario_name', scenario_id)} "
+        "(Vulnerable vs Secure)"
+    )
+
+    execution_record = {
+        "schema_version": 1,
+        "scenario_id": scenario_id,
+        "target_profile_ids": [
+            "target-testgpt-vulnerable-v1",
+            "target-testgpt-secure-v1",
+        ],
+        "model_profile_id": "model-deterministic-mock-v1",
+        "simulation": safe_result,
+    }
+
+    connection.execute(
+        """
+        INSERT INTO assessments (
+            id,
+            name,
+            created_by,
+            target_profile_id,
+            model_profile_id,
+            status,
+            created_at,
+            started_at,
+            completed_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            assessment_id,
+            assessment_name,
+            user_id,
+            "target-testgpt-vulnerable-v1",
+            "model-deterministic-mock-v1",
+            "completed",
+            now,
+            now,
+            now,
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO test_runs (
+            id,
+            assessment_id,
+            test_case_id,
+            status,
+            started_at,
+            completed_at,
+            execution_result,
+            error_summary
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            test_run_id,
+            assessment_id,
+            test_case_id,
+            "completed",
+            now,
+            now,
+            json.dumps(
+                execution_record,
+                ensure_ascii=False,
+                sort_keys=True,
+            ),
+            None,
+        ),
+    )
+
+    _audit_simulation(connection, user_id, scenario_id)
+
+    return {
+        "assessment_id": assessment_id,
+        "test_run_id": test_run_id,
+    }
+
 
 
 def _verify_training_profiles(connection) -> None:
@@ -222,7 +380,7 @@ def execute_ai_001(
     user: AuthenticatedUser = Depends(get_simulation_user),
     auth_service: LoginService = Depends(get_auth_service),
 ) -> dict:
-    """Execute fixed AI-001 in memory; only its audit event is persisted."""
+    """Execute fixed AI-001 and persist its synthetic assessment history."""
 
     require_same_origin(request)
     set_no_store(response)
@@ -255,22 +413,30 @@ def execute_ai_001(
                     detail="The AI-001 defensive evaluation did not pass.",
                 )
 
-            # Record only the execution audit event.
-            _audit_simulation(connection, user.user_id, "AI-001")
+            result = _redact_synthetic_canaries(result)
+            history = _persist_simulation_history(
+                connection,
+                user.user_id,
+                "AI-001",
+                result,
+            )
 
     except HTTPException:
         raise
     except sqlite3.Error:
         raise HTTPException(
             status_code=503,
-            detail="The simulation could not access its local configuration.",
+            detail="The simulation history could not be saved.",
         ) from None
 
     return {
         "simulation": result,
         "audit_recorded": True,
-        "assessment_created": False,
-        "test_run_created": False,
+        "history_persisted": True,
+        "assessment_created": True,
+        "test_run_created": True,
+        "assessment_id": history["assessment_id"],
+        "test_run_id": history["test_run_id"],
         "finding_created": False,
         "evidence_persisted": False,
     }
@@ -290,7 +456,7 @@ def execute_ai_002(
     user: AuthenticatedUser = Depends(get_simulation_user),
     auth_service: LoginService = Depends(get_auth_service),
 ) -> dict:
-    """Execute fixed AI-002 in memory; only its audit event is persisted."""
+    """Execute fixed AI-002 and persist its synthetic assessment history."""
 
     require_same_origin(request)
     set_no_store(response)
@@ -318,8 +484,6 @@ def execute_ai_002(
 
             # The document and query are fixed inside the engine.
             # No request-supplied document or prompt is accepted.
-            from app.core.ai002_indirect import run_ai_002
-
             result = run_ai_002()
 
             if result["evaluation"]["blue_team_control"] != "PASS":
@@ -328,11 +492,12 @@ def execute_ai_002(
                     detail="The AI-002 defensive evaluation did not pass.",
                 )
 
-            # Record only the scenario-specific audit event.
-            _audit_simulation(
+            result = _redact_synthetic_canaries(result)
+            history = _persist_simulation_history(
                 connection,
                 user.user_id,
                 "AI-002",
+                result,
             )
 
     except HTTPException:
@@ -340,14 +505,17 @@ def execute_ai_002(
     except sqlite3.Error:
         raise HTTPException(
             status_code=503,
-            detail="The simulation could not access its local configuration.",
+            detail="The simulation history could not be saved.",
         ) from None
 
     return {
         "simulation": result,
         "audit_recorded": True,
-        "assessment_created": False,
-        "test_run_created": False,
+        "history_persisted": True,
+        "assessment_created": True,
+        "test_run_created": True,
+        "assessment_id": history["assessment_id"],
+        "test_run_id": history["test_run_id"],
         "finding_created": False,
         "evidence_persisted": False,
     }
@@ -367,7 +535,7 @@ def execute_ai_003(
     user: AuthenticatedUser = Depends(get_simulation_user),
     auth_service: LoginService = Depends(get_auth_service),
 ) -> dict:
-    """Execute fixed AI-003 in memory; only its audit event is persisted."""
+    """Execute fixed AI-003 and persist its synthetic assessment history."""
 
     require_same_origin(request)
     set_no_store(response)
@@ -401,11 +569,12 @@ def execute_ai_003(
                     detail="The AI-003 defensive evaluation did not pass.",
                 )
 
-            # Persist only the scenario-specific audit event.
-            _audit_simulation(
+            result = _redact_synthetic_canaries(result)
+            history = _persist_simulation_history(
                 connection,
                 user.user_id,
                 "AI-003",
+                result,
             )
 
     except HTTPException:
@@ -413,14 +582,17 @@ def execute_ai_003(
     except sqlite3.Error:
         raise HTTPException(
             status_code=503,
-            detail="The simulation could not access its local configuration.",
+            detail="The simulation history could not be saved.",
         ) from None
 
     return {
         "simulation": result,
         "audit_recorded": True,
-        "assessment_created": False,
-        "test_run_created": False,
+        "history_persisted": True,
+        "assessment_created": True,
+        "test_run_created": True,
+        "assessment_id": history["assessment_id"],
+        "test_run_id": history["test_run_id"],
         "finding_created": False,
         "evidence_persisted": False,
     }
@@ -428,24 +600,9 @@ def execute_ai_003(
 
 
 def _redact_ai004_canary(value):
-    """Redact the synthetic canary from every nested API response value."""
+    """Backward-compatible wrapper for the shared synthetic redactor."""
 
-    if isinstance(value, dict):
-        return {
-            key: _redact_ai004_canary(item)
-            for key, item in value.items()
-        }
-
-    if isinstance(value, list):
-        return [_redact_ai004_canary(item) for item in value]
-
-    if isinstance(value, str):
-        return value.replace(
-            SYNTHETIC_MEMORY_CANARY,
-            "[REDACTED_SYNTHETIC_CANARY]",
-        )
-
-    return value
+    return _redact_synthetic_canaries(value)
 
 @router.post("/simulations/AI-004/run")
 def execute_ai_004(
@@ -462,7 +619,7 @@ def execute_ai_004(
     user: AuthenticatedUser = Depends(get_simulation_user),
     auth_service: LoginService = Depends(get_auth_service),
 ) -> dict:
-    """Execute fixed AI-004 in memory; only its audit event is persisted."""
+    """Execute fixed AI-004 and persist its synthetic assessment history."""
 
     require_same_origin(request)
     set_no_store(response)
@@ -496,14 +653,14 @@ def execute_ai_004(
                     detail="The AI-004 defensive evaluation did not pass.",
                 )
 
-            # Preserve the exposure indicator but never return the token.
-            result = _redact_ai004_canary(result)
+            # Redact before either storage or API response.
+            result = _redact_synthetic_canaries(result)
 
-            # Only the scenario-specific audit event is persisted.
-            _audit_simulation(
+            history = _persist_simulation_history(
                 connection,
                 user.user_id,
                 "AI-004",
+                result,
             )
 
     except HTTPException:
@@ -511,14 +668,17 @@ def execute_ai_004(
     except sqlite3.Error:
         raise HTTPException(
             status_code=503,
-            detail="The simulation could not access its local configuration.",
+            detail="The simulation history could not be saved.",
         ) from None
 
     return {
         "simulation": result,
         "audit_recorded": True,
-        "assessment_created": False,
-        "test_run_created": False,
+        "history_persisted": True,
+        "assessment_created": True,
+        "test_run_created": True,
+        "assessment_id": history["assessment_id"],
+        "test_run_id": history["test_run_id"],
         "finding_created": False,
         "evidence_persisted": False,
     }

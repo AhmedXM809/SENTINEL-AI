@@ -4,7 +4,7 @@
 **Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
 **Project status:** Local security-testing prototype
-**Application version:** 0.1.0
+**Application version:** 0.2.0
 **Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
 **Deployment:** Localhost-only
 
@@ -76,7 +76,9 @@ The frontend is served by FastAPI from `app/web/`. It provides the local applica
 
 ### Database
 
-The application uses SQLite. The checked-in schema and migrations represent database versions 1 through 5. The current readiness check expects schema version 5, 19 application tables, and enabled foreign-key enforcement.
+The application uses SQLite. The checked-in schema and migrations represent database versions 1 through 6. Application readiness requires schema version 6, 19 application tables, enabled foreign-key enforcement, and all four registered AI-001 through AI-004 scenario records.
+
+Completed executions of AI-001 through AI-004 persist a sanitized result envelope, assessment, test run, and audit event locally after migration 006 is applied. Synthetic canaries are redacted. These simulations do not create findings or evidence records.
 
 ## 3. Technology Stack
 
@@ -165,14 +167,14 @@ python scripts\initialize_database.py
 ```
 
 A fresh, empty database receives the base schema and migrations through
-version 5, followed by the initial RBAC roles and permissions. For a
-supported older version (1 through 4), the utility checks the supported
-schema properties, creates a SQLite online backup under
-`backups/database-migrations/`, verifies the backup's integrity and foreign
-keys, and then applies the remaining migrations. Migration 003 revokes
-pre-migration sessions, so users must authenticate again after that upgrade.
+version 6, followed by the initial RBAC roles and permissions. For a supported
+older version (1 through 5), the utility checks the supported schema properties,
+creates a SQLite online backup under `backups/database-migrations/`, verifies
+the backup's integrity and foreign keys, and then applies the remaining
+migrations. Migration 003 revokes pre-migration sessions, so users must
+authenticate again after that upgrade.
 
-A version-5 database receives no schema migrations and no new backup.
+A version-6 database receives no schema migrations and no new backup.
 The utility still checks the supported schema properties and examines RBAC
 state. It seeds default RBAC records only when all four RBAC tables are empty.
 If any of those tables already contain data, existing RBAC state and
@@ -186,8 +188,8 @@ they do not compare every column, index, or constraint with the canonical
 schema.
 
 Stop the application before upgrading an older database. The readiness
-endpoint should report `ready`, schema version `5`, 19 tables, and enabled
-foreign keys.
+endpoint should report `ready`, schema version `6`, 19 tables, enabled foreign
+keys, and four registered scenario test cases.
 ### Provision an administrator
 
 ```powershell
@@ -234,9 +236,9 @@ python -m pytest tests\test_ai004_memory_poisoning.py -q
 
 Report test results only after the command completes successfully in the environment being documented.
 
-### Latest verified local test run — November 5, 2026
+### Latest verified local test run ? November 7, 2026
 
-The full local test suite completed with **170 passed, 113 subtests passed, 0 failures, and 40 warnings** in 3.54 seconds. The warnings concern Starlette TestClient per-request cookie deprecation. Run the test command again to verify the current checkout.
+The full local test suite completed on November 7, 2026, with **179 passed, 113 subtests passed, 0 failures, and 41 warnings** in 2.75 seconds. The warnings concern Starlette TestClient per-request cookie deprecation.
 
 ## 7. Security Boundaries
 SENTINEL AI is an isolated training and demonstration project.
@@ -260,7 +262,7 @@ The following are not currently represented as completed features:
 - External model-provider adapters.
 - Full RAG security testing.
 - AI-005 through AI-012.
-- General assessment creation and history workflows.
+- General-purpose assessment creation and arbitrary history workflows beyond the four registered simulations.
 - Persistent storage of simulation findings and evidence.
 - A complete risk-scoring engine.
 - MITRE ATLAS mapping.

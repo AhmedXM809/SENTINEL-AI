@@ -62,6 +62,70 @@ class TestAI001SimulationAPI(unittest.TestCase):
         self.memory.row_factory = sqlite3.Row
         self.memory.execute("PRAGMA foreign_keys = ON")
 
+        # Support both v5 test sources and the current v6 live database.
+        # The source database is opened read-only above; all setup changes
+        # below affect only this isolated in-memory copy.
+        memory_version = self.memory.execute(
+            "PRAGMA user_version"
+        ).fetchone()[0]
+
+        if memory_version == 5:
+            migration_path = (
+                ROOT / "app" / "db" / "migrations"
+                / "006_assessment_test_cases.sql"
+            )
+            migration_sql = migration_path.read_text(encoding="utf-8")
+            self.memory.executescript(migration_sql)
+        elif memory_version != 6:
+            raise RuntimeError(
+                f"Expected source schema v5 or v6; found v{memory_version}."
+            )
+
+        migrated_version = self.memory.execute(
+            "PRAGMA user_version"
+        ).fetchone()[0]
+
+        if migrated_version != 6:
+            raise RuntimeError(
+                f"In-memory test database expected v6; found v{migrated_version}."
+            )
+
+        expected_cases = {
+            "test-case-ai-001": "AI-001",
+            "test-case-ai-002": "AI-002",
+            "test-case-ai-003": "AI-003",
+            "test-case-ai-004": "AI-004",
+        }
+        scenario_case_ids = tuple(expected_cases)
+        case_placeholders = ", ".join("?" for _ in scenario_case_ids)
+
+        scenario_rows = self.memory.execute(
+            f"""
+            SELECT id, scenario_code, is_enabled
+            FROM test_cases
+            WHERE id IN ({case_placeholders})
+            """,
+            scenario_case_ids,
+        ).fetchall()
+
+        registered_cases = {
+            row["id"]: (row["scenario_code"], row["is_enabled"])
+            for row in scenario_rows
+        }
+        expected_registered_cases = {
+            case_id: (scenario_code, 1)
+            for case_id, scenario_code in expected_cases.items()
+        }
+
+        if registered_cases != expected_registered_cases:
+            raise RuntimeError(
+                "In-memory database does not contain all four enabled "
+                "AI scenario test cases with the expected mappings."
+            )
+
+        # Keep copied history intact. The audit log is append-only, and
+        # baseline counters below make assertions independent of prior runs.
+
         administrator = self.memory.execute(
             """
             SELECT u.id, u.username
@@ -77,6 +141,7 @@ class TestAI001SimulationAPI(unittest.TestCase):
         self.assertIsNotNone(administrator)
 
         user_id = administrator["id"]
+        self.user_id = user_id
 
         admin = AuthenticatedUser(
             user_id=user_id,
@@ -267,6 +332,132 @@ class TestAI001SimulationAPI(unittest.TestCase):
             ("ai_security.simulation.executed", "AI-004"),
         ).fetchone()[0]
 
+    def _assert_history_persisted(self, response, scenario_id):
+        """Verify API metadata and the corresponding sanitized history rows."""
+
+        body = response.json()
+
+        self.assertTrue(body["audit_recorded"])
+        self.assertTrue(body["history_persisted"])
+        self.assertTrue(body["assessment_created"])
+        self.assertTrue(body["test_run_created"])
+        self.assertFalse(body["finding_created"])
+        self.assertFalse(body["evidence_persisted"])
+
+        assessment_id = body["assessment_id"]
+        test_run_id = body["test_run_id"]
+
+        self.assertIsInstance(assessment_id, str)
+        self.assertTrue(assessment_id)
+        self.assertIsInstance(test_run_id, str)
+        self.assertTrue(test_run_id)
+
+        assessment = self.memory.execute(
+            "SELECT * FROM assessments WHERE id = ?",
+            (assessment_id,),
+        ).fetchone()
+
+        self.assertIsNotNone(assessment)
+        self.assertEqual(assessment["created_by"], self.user_id)
+        self.assertEqual(
+            assessment["target_profile_id"],
+            "target-testgpt-vulnerable-v1",
+        )
+        self.assertEqual(
+            assessment["model_profile_id"],
+            "model-deterministic-mock-v1",
+        )
+        self.assertEqual(assessment["status"], "completed")
+        self.assertTrue(
+            assessment["name"].startswith(f"{scenario_id} - ")
+        )
+        self.assertEqual(
+            assessment["created_at"],
+            assessment["started_at"],
+        )
+        self.assertEqual(
+            assessment["created_at"],
+            assessment["completed_at"],
+        )
+
+        expected_test_cases = {
+            "AI-001": "test-case-ai-001",
+            "AI-002": "test-case-ai-002",
+            "AI-003": "test-case-ai-003",
+            "AI-004": "test-case-ai-004",
+        }
+
+        self.assertIn(scenario_id, expected_test_cases)
+        expected_test_case_id = expected_test_cases[scenario_id]
+
+        test_case = self.memory.execute(
+            "SELECT scenario_code FROM test_cases WHERE id = ?",
+            (expected_test_case_id,),
+        ).fetchone()
+
+        self.assertIsNotNone(test_case)
+        self.assertEqual(test_case["scenario_code"], scenario_id)
+
+        test_run = self.memory.execute(
+            "SELECT * FROM test_runs WHERE id = ?",
+            (test_run_id,),
+        ).fetchone()
+
+        self.assertIsNotNone(test_run)
+        self.assertEqual(test_run["assessment_id"], assessment_id)
+        self.assertEqual(
+            test_run["test_case_id"],
+            expected_test_case_id,
+        )
+        self.assertEqual(test_run["status"], "completed")
+        self.assertIsNone(test_run["error_summary"])
+        self.assertEqual(
+            test_run["started_at"],
+            test_run["completed_at"],
+        )
+
+        execution_record = json.loads(test_run["execution_result"])
+
+        self.assertEqual(execution_record["schema_version"], 1)
+        self.assertEqual(execution_record["scenario_id"], scenario_id)
+        self.assertEqual(
+            execution_record["target_profile_ids"],
+            [
+                "target-testgpt-vulnerable-v1",
+                "target-testgpt-secure-v1",
+            ],
+        )
+        self.assertEqual(
+            execution_record["model_profile_id"],
+            "model-deterministic-mock-v1",
+        )
+        self.assertEqual(
+            execution_record["simulation"]["scenario_id"],
+            scenario_id,
+        )
+
+        canaries = (
+            assessment_module.AI001_SYNTHETIC_CANARY,
+            assessment_module.SYNTHETIC_RAG_CANARY,
+            assessment_module.AI003_SYNTHETIC_CANARY,
+            assessment_module.SYNTHETIC_MEMORY_CANARY,
+        )
+
+        stored_text = json.dumps(
+            execution_record,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+
+        for canary in canaries:
+            self.assertNotIn(canary, response.text)
+            self.assertNotIn(canary, stored_text)
+
+        return {
+            "assessment_id": assessment_id,
+            "test_run_id": test_run_id,
+        }
+
     def test_anonymous_user_is_rejected(self):
         response = self.post()
 
@@ -341,11 +532,7 @@ class TestAI001SimulationAPI(unittest.TestCase):
             result["evaluation"]["secure_target_disclosed_canary"]
         )
 
-        self.assertTrue(body["audit_recorded"])
-        self.assertFalse(body["assessment_created"])
-        self.assertFalse(body["test_run_created"])
-        self.assertFalse(body["finding_created"])
-        self.assertFalse(body["evidence_persisted"])
+        self._assert_history_persisted(response, "AI-001")
 
         audit_count = self.memory.execute(
             """
@@ -360,11 +547,11 @@ class TestAI001SimulationAPI(unittest.TestCase):
 
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM assessments").fetchone()[0],
-            self.initial_assessments,
+            self.initial_assessments + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM test_runs").fetchone()[0],
-            self.initial_runs,
+            self.initial_runs + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM findings").fetchone()[0],
@@ -464,6 +651,37 @@ class TestAI001SimulationAPI(unittest.TestCase):
             second.json()["simulation"],
         )
 
+        first_history = self._assert_history_persisted(
+            first,
+            "AI-001",
+        )
+        second_history = self._assert_history_persisted(
+            second,
+            "AI-001",
+        )
+
+        self.assertNotEqual(
+            first_history["assessment_id"],
+            second_history["assessment_id"],
+        )
+        self.assertNotEqual(
+            first_history["test_run_id"],
+            second_history["test_run_id"],
+        )
+
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM assessments"
+            ).fetchone()[0],
+            self.initial_assessments + 2,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM test_runs"
+            ).fetchone()[0],
+            self.initial_runs + 2,
+        )
+
         audit_count = self.memory.execute(
             """
             SELECT COUNT(*)
@@ -474,6 +692,68 @@ class TestAI001SimulationAPI(unittest.TestCase):
         ).fetchone()[0]
 
         self.assertEqual(audit_count, self.initial_ai001_audit_count + 2)
+
+    def test_history_insert_failure_rolls_back_assessment_and_audit(self):
+        self.memory.execute(
+            """
+            CREATE TRIGGER fail_test_run_insert
+            BEFORE INSERT ON test_runs
+            BEGIN
+                SELECT RAISE(ABORT, 'injected test-run insert failure');
+            END;
+            """
+        )
+        self.memory.commit()
+
+        assessments_before = self.memory.execute(
+            "SELECT COUNT(*) FROM assessments"
+        ).fetchone()[0]
+        runs_before = self.memory.execute(
+            "SELECT COUNT(*) FROM test_runs"
+        ).fetchone()[0]
+        audit_before = self.memory.execute(
+            """
+            SELECT COUNT(*)
+            FROM audit_log
+            WHERE action = 'ai_security.simulation.executed'
+              AND resource_id = 'AI-001'
+            """
+        ).fetchone()[0]
+
+        response = self.post(
+            self.analyst_cookie,
+            self.headers,
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json()["detail"],
+            "The simulation history could not be saved.",
+        )
+
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM assessments"
+            ).fetchone()[0],
+            assessments_before,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM test_runs"
+            ).fetchone()[0],
+            runs_before,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                """
+                SELECT COUNT(*)
+                FROM audit_log
+                WHERE action = 'ai_security.simulation.executed'
+                  AND resource_id = 'AI-001'
+                """
+            ).fetchone()[0],
+            audit_before,
+        )
 
     def test_ai002_anonymous_user_is_rejected(self):
         response = self.post_ai002()
@@ -572,11 +852,7 @@ class TestAI001SimulationAPI(unittest.TestCase):
             str(result),
         )
 
-        self.assertTrue(body["audit_recorded"])
-        self.assertFalse(body["assessment_created"])
-        self.assertFalse(body["test_run_created"])
-        self.assertFalse(body["finding_created"])
-        self.assertFalse(body["evidence_persisted"])
+        self._assert_history_persisted(response, "AI-002")
 
         audit_count = self.memory.execute(
             """
@@ -596,13 +872,13 @@ class TestAI001SimulationAPI(unittest.TestCase):
             self.memory.execute(
                 "SELECT COUNT(*) FROM assessments"
             ).fetchone()[0],
-            self.initial_assessments,
+            self.initial_assessments + 1,
         )
         self.assertEqual(
             self.memory.execute(
                 "SELECT COUNT(*) FROM test_runs"
             ).fetchone()[0],
-            self.initial_runs,
+            self.initial_runs + 1,
         )
         self.assertEqual(
             self.memory.execute(
@@ -680,6 +956,37 @@ class TestAI001SimulationAPI(unittest.TestCase):
         self.assertEqual(
             first.json()["simulation"],
             second.json()["simulation"],
+        )
+
+        first_history = self._assert_history_persisted(
+            first,
+            "AI-002",
+        )
+        second_history = self._assert_history_persisted(
+            second,
+            "AI-002",
+        )
+
+        self.assertNotEqual(
+            first_history["assessment_id"],
+            second_history["assessment_id"],
+        )
+        self.assertNotEqual(
+            first_history["test_run_id"],
+            second_history["test_run_id"],
+        )
+
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM assessments"
+            ).fetchone()[0],
+            self.initial_assessments + 2,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM test_runs"
+            ).fetchone()[0],
+            self.initial_runs + 2,
         )
 
         audit_count = self.memory.execute(
@@ -793,11 +1100,7 @@ class TestAI001SimulationAPI(unittest.TestCase):
             "AGENT-PERM-001",
         }.issubset(secure_rule_ids))
 
-        self.assertTrue(body["audit_recorded"])
-        self.assertFalse(body["assessment_created"])
-        self.assertFalse(body["test_run_created"])
-        self.assertFalse(body["finding_created"])
-        self.assertFalse(body["evidence_persisted"])
+        self._assert_history_persisted(response, "AI-003")
 
         audit_count = self.memory.execute(
             """
@@ -814,11 +1117,11 @@ class TestAI001SimulationAPI(unittest.TestCase):
 
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM assessments").fetchone()[0],
-            self.initial_assessments,
+            self.initial_assessments + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM test_runs").fetchone()[0],
-            self.initial_runs,
+            self.initial_runs + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM findings").fetchone()[0],
@@ -886,6 +1189,37 @@ class TestAI001SimulationAPI(unittest.TestCase):
         self.assertEqual(
             first.json()["simulation"],
             second.json()["simulation"],
+        )
+
+        first_history = self._assert_history_persisted(
+            first,
+            "AI-003",
+        )
+        second_history = self._assert_history_persisted(
+            second,
+            "AI-003",
+        )
+
+        self.assertNotEqual(
+            first_history["assessment_id"],
+            second_history["assessment_id"],
+        )
+        self.assertNotEqual(
+            first_history["test_run_id"],
+            second_history["test_run_id"],
+        )
+
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM assessments"
+            ).fetchone()[0],
+            self.initial_assessments + 2,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM test_runs"
+            ).fetchone()[0],
+            self.initial_runs + 2,
         )
 
         audit_count = self.memory.execute(
@@ -1032,20 +1366,16 @@ class TestAI001SimulationAPI(unittest.TestCase):
             response.text,
         )
 
-        self.assertTrue(body["audit_recorded"])
-        self.assertFalse(body["assessment_created"])
-        self.assertFalse(body["test_run_created"])
-        self.assertFalse(body["finding_created"])
-        self.assertFalse(body["evidence_persisted"])
+        self._assert_history_persisted(response, "AI-004")
         self.assertEqual(self.ai004_audit_count(), audit_before + 1)
 
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM assessments").fetchone()[0],
-            self.initial_assessments,
+            self.initial_assessments + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM test_runs").fetchone()[0],
-            self.initial_runs,
+            self.initial_runs + 1,
         )
         self.assertEqual(
             self.memory.execute("SELECT COUNT(*) FROM findings").fetchone()[0],
@@ -1091,6 +1421,37 @@ class TestAI001SimulationAPI(unittest.TestCase):
         self.assertEqual(
             first.json()["simulation"],
             second.json()["simulation"],
+        )
+
+        first_history = self._assert_history_persisted(
+            first,
+            "AI-004",
+        )
+        second_history = self._assert_history_persisted(
+            second,
+            "AI-004",
+        )
+
+        self.assertNotEqual(
+            first_history["assessment_id"],
+            second_history["assessment_id"],
+        )
+        self.assertNotEqual(
+            first_history["test_run_id"],
+            second_history["test_run_id"],
+        )
+
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM assessments"
+            ).fetchone()[0],
+            self.initial_assessments + 2,
+        )
+        self.assertEqual(
+            self.memory.execute(
+                "SELECT COUNT(*) FROM test_runs"
+            ).fetchone()[0],
+            self.initial_runs + 2,
         )
         self.assertEqual(self.ai004_audit_count(), audit_before + 2)
 

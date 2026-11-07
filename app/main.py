@@ -14,7 +14,7 @@ from app.api.assessments import router as assessments_router
 app = FastAPI(
     title="SENTINEL AI",
     description="AI Security Testing & Defense Platform",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 app.add_middleware(
@@ -39,13 +39,19 @@ async def health() -> dict[str, str]:
     }
 
 
+REQUIRED_TEST_CASES = {
+    "test-case-ai-001": "AI-001",
+    "test-case-ai-002": "AI-002",
+    "test-case-ai-003": "AI-003",
+    "test-case-ai-004": "AI-004",
+}
+
+
 @app.get("/health/ready", tags=["System"])
 def readiness() -> dict[str, str]:
     try:
         with get_connection() as connection:
-            result = connection.execute(
-                "SELECT 1"
-            ).fetchone()
+            result = connection.execute("SELECT 1").fetchone()
 
             foreign_keys = connection.execute(
                 "PRAGMA foreign_keys"
@@ -64,16 +70,41 @@ def readiness() -> dict[str, str]:
                 """
             ).fetchone()[0]
 
+            registered_test_cases = {}
+
+            if schema_version == 6:
+                placeholders = ", ".join(
+                    "?" for _ in REQUIRED_TEST_CASES
+                )
+                rows = connection.execute(
+                    f"""
+                    SELECT id, scenario_code, is_enabled
+                    FROM test_cases
+                    WHERE id IN ({placeholders})
+                    """,
+                    tuple(REQUIRED_TEST_CASES),
+                ).fetchall()
+
+                registered_test_cases = {
+                    row["id"]: (
+                        row["scenario_code"],
+                        row["is_enabled"],
+                    )
+                    for row in rows
+                }
+
+            expected_test_cases = {
+                case_id: (scenario_code, 1)
+                for case_id, scenario_code in REQUIRED_TEST_CASES.items()
+            }
+
             if (
                 result is None
                 or result[0] != 1
                 or foreign_keys != 1
-                or schema_version not in (1, 2, 3, 4, 5)
-                or table_count != (
-                    19 if schema_version == 5
-                    else 16 if schema_version in (3, 4)
-                    else 15
-                )
+                or schema_version != 6
+                or table_count != 19
+                or registered_test_cases != expected_test_cases
             ):
                 raise HTTPException(
                     status_code=503,
@@ -93,7 +124,10 @@ def readiness() -> dict[str, str]:
         "schema_version": str(schema_version),
         "tables": str(table_count),
         "foreign_keys": "enabled",
+        "registered_test_cases": str(len(registered_test_cases)),
     }
+
+
 @app.middleware("http")
 async def add_web_security_headers(request: Request, call_next):
     response = await call_next(request)

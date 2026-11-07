@@ -11,14 +11,15 @@ SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 MIGRATIONS_DIRECTORY = Path(__file__).resolve().parent / "migrations"
 DEFAULT_DATABASE_PATH = PROJECT_ROOT / "data" / "sentinel.db"
 DEFAULT_BACKUP_DIRECTORY = PROJECT_ROOT / "backups" / "database-migrations"
-LATEST_SCHEMA_VERSION = 5
+LATEST_SCHEMA_VERSION = 6
 
-EXPECTED_TABLE_COUNTS = {1: 15, 2: 15, 3: 16, 4: 16, 5: 19}
+EXPECTED_TABLE_COUNTS = {1: 15, 2: 15, 3: 16, 4: 16, 5: 19, 6: 19}
 MIGRATION_FILES = {
     2: "002_session_idle_timeout.sql",
     3: "003_http_auth_security.sql",
     4: "004_login_identifier_throttling.sql",
     5: "005_mfa_support.sql",
+    6: "006_assessment_test_cases.sql",
 }
 
 
@@ -116,7 +117,7 @@ def _run_sql_file(connection: sqlite3.Connection, sql_path: Path) -> None:
         raise MigrationError(f"SQL file is empty: {sql_path.name}")
 
     try:
-        # Migration 005 already owns its explicit transaction.
+        # Migrations 005 and 006 own their explicit transactions.
         if "BEGIN IMMEDIATE;" in sql.upper():
             connection.executescript(sql)
         else:
@@ -185,7 +186,7 @@ def initialize_database(
     database_path: str | Path = DEFAULT_DATABASE_PATH,
     backup_directory: str | Path = DEFAULT_BACKUP_DIRECTORY,
 ) -> dict[str, Any]:
-    """Initialize a fresh DB or upgrade v1-v4, backing up before upgrades."""
+    """Initialize a fresh DB or upgrade v1-v5, backing up before upgrades."""
     path = Path(database_path).expanduser().resolve()
     existed_before = path.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
