@@ -37,7 +37,7 @@
 
             <div class="intro-footer">
                 <span>LOCAL SECURITY WORKSPACE</span>
-                <span>VERSION 0.1.0</span>
+                <span>VERSION 0.3.0</span>
             </div>
         </section>
 
@@ -135,6 +135,9 @@
                 <a id="assessments-nav" class="nav-link" href="#assessments"><span class="nav-icon">◎</span><span>Assessments</span></a>
                 <a id="targets-nav" class="nav-link" href="#targets"><span class="nav-icon">▣</span><span>AI Targets</span></a>
                 <div class="nav-section-label">INVESTIGATION</div>
+                <a id="history-nav" class="nav-link" href="#history">
+                    <span class="nav-icon">?</span><span>Assessment History</span>
+                </a>
                 <div class="nav-link planned"><span class="nav-icon">⌘</span><span>Findings</span><small>PLANNED</small></div>
                 <div class="nav-link planned"><span class="nav-icon">▤</span><span>Evidence</span><small>PLANNED</small></div>
                 <div class="nav-link planned"><span class="nav-icon">◫</span><span>Risk &amp; Reports</span><small>PLANNED</small></div>
@@ -281,7 +284,7 @@
 
                 <footer class="workspace-footer">
                     <span>SENTINEL AI <span class="footer-separator">/</span> AI SECURITY TESTING &amp; DEFENSE PLATFORM</span>
-                    <span>LOCAL INSTANCE · V0.1.0</span>
+                    <span>LOCAL INSTANCE · V0.3.0</span>
                 </footer>
                 </div>
 
@@ -948,6 +951,89 @@
                         <span>AI-001 + AI-002 + AI-003 + AI-004 / DETERMINISTIC TRAINING</span>
                     </footer>
                 </section>
+
+                    <section id="assessment-history-page" class="assessment-history-page" hidden>
+                        <div class="targets-page-heading">
+                            <div>
+                                <div class="eyebrow">INVESTIGATION / PERSISTED RECORDS</div>
+                                <h1>Assessment History<span class="title-period">.</span></h1>
+                                <p class="muted">Review recorded AI security simulations. Browsing history never starts a test.</p>
+                            </div>
+                            <div class="targets-actions">
+                                <button id="history-refresh-button" class="secondary-button" type="button">? Refresh history</button>
+                            </div>
+                        </div>
+
+                        <div class="history-boundary-note">
+                            <span class="note-icon" aria-hidden="true">?</span>
+                            <div>
+                                <strong>Read-only investigation view</strong>
+                                <p>This page displays assessment metadata only. Stored execution payloads, synthetic canaries, findings, and evidence are not exposed.</p>
+                            </div>
+                        </div>
+
+                        <div id="history-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
+
+                        <section class="history-summary">
+                            <article class="status-card">
+                                <div class="status-card-top"><span class="status-icon cyan">?</span><span class="mini-tag">PERSISTED</span></div>
+                                <h3>Recorded assessments</h3>
+                                <div id="history-total" class="status-value">?</div>
+                                <p>Total assessment records available to your account.</p>
+                            </article>
+                            <article class="status-card">
+                                <div class="status-card-top"><span class="status-icon green">?</span><span class="mini-tag">ACCESS</span></div>
+                                <h3>History permission</h3>
+                                <div class="status-value positive">Read only</div>
+                                <p>Requires assessments.read; execution permission is separate.</p>
+                            </article>
+                            <article class="status-card">
+                                <div class="status-card-top"><span class="status-icon violet">?</span><span class="mini-tag">DATA</span></div>
+                                <h3>Stored result payloads</h3>
+                                <div class="status-value">Protected</div>
+                                <p>Full execution JSON is not returned by the history list API.</p>
+                            </article>
+                        </section>
+
+                        <div class="section-heading history-section-heading">
+                            <div>
+                                <div class="eyebrow">ASSESSMENT REGISTER</div>
+                                <h2>Previously recorded runs</h2>
+                            </div>
+                            <span id="history-page-indicator" class="section-note" aria-live="polite">Not loaded</span>
+                        </div>
+
+                        <div class="history-table-wrap">
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Assessment</th>
+                                        <th scope="col">Scenario</th>
+                                        <th scope="col">Run status</th>
+                                        <th scope="col">Created</th>
+                                        <th scope="col">Completed</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-table-body"></tbody>
+                            </table>
+                        </div>
+
+                        <div id="history-empty" class="targets-empty" hidden>
+                            <div class="empty-symbol">?</div>
+                            <h3>No assessment records found</h3>
+                            <p>There are no assessment records on this page.</p>
+                        </div>
+
+                        <div class="history-pagination">
+                            <button id="history-prev-button" class="secondary-button" type="button" disabled>? Previous</button>
+                            <button id="history-next-button" class="secondary-button" type="button" disabled>Next ?</button>
+                        </div>
+
+                        <footer class="workspace-footer assessment-footer">
+                            <span>SENTINEL AI / READ-ONLY ASSESSMENT HISTORY</span>
+                            <span>METADATA ONLY / NO SIMULATION EXECUTION</span>
+                        </footer>
+                    </section>
             </div>
         </section>
     </main>

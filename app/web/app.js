@@ -6,6 +6,9 @@
     let csrfToken = null;
     let currentUser = null;
     let usingRecoveryCode = false;
+    let assessmentHistoryOffset = 0;
+    let assessmentHistoryRequest = 0;
+    const ASSESSMENT_HISTORY_PAGE_SIZE = 10;
 
     class ApiError extends Error {
         constructor(message, status, retryAfter) {
@@ -510,6 +513,156 @@
     }
 
 
+    function historyText(value, fallback = "?") {
+        return typeof value === "string" && value.trim()
+            ? value.trim()
+            : fallback;
+    }
+
+    function formatHistoryDate(value) {
+        if (typeof value !== "string" || !value.trim()) return "?";
+        const timestamp = Date.parse(value);
+        return Number.isFinite(timestamp)
+            ? new Date(timestamp).toLocaleString()
+            : value;
+    }
+
+    function createHistoryCell(value) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        return cell;
+    }
+
+    function createHistoryStatus(value) {
+        const normalized = historyText(value, "unknown").toLowerCase();
+        const allowed = ["completed", "failed", "running", "pending"];
+        const state = allowed.includes(normalized) ? normalized : "unknown";
+
+        const badge = document.createElement("span");
+        badge.className = `history-status ${state}`;
+        badge.textContent = historyText(value, "Unknown");
+        return badge;
+    }
+
+    function renderAssessmentHistory(data) {
+        if (
+            !data
+            || !Array.isArray(data.items)
+            || !data.pagination
+            || !Number.isInteger(data.pagination.total)
+            || !Number.isInteger(data.pagination.offset)
+            || typeof data.pagination.has_more !== "boolean"
+        ) {
+            throw new ApiError("Assessment history returned an invalid response.", 502);
+        }
+
+        const body = byId("history-table-body");
+        const fragment = document.createDocumentFragment();
+
+        for (const item of data.items) {
+            if (!item || typeof item !== "object") {
+                throw new ApiError("Assessment history contains an invalid record.", 502);
+            }
+
+            const row = document.createElement("tr");
+
+            const nameCell = document.createElement("td");
+            const name = document.createElement("strong");
+            name.className = "history-assessment-name";
+            name.textContent = historyText(item.name, item.assessment_id);
+            nameCell.appendChild(name);
+
+            const recordId = document.createElement("small");
+            recordId.className = "history-record-id";
+            recordId.textContent = historyText(item.assessment_id);
+            nameCell.appendChild(recordId);
+            row.appendChild(nameCell);
+
+            const scenarioCell = document.createElement("td");
+            const scenario = document.createElement("strong");
+            scenario.textContent = historyText(item.scenario_code);
+            scenarioCell.appendChild(scenario);
+
+            const scenarioName = document.createElement("small");
+            scenarioName.className = "history-record-id";
+            scenarioName.textContent = historyText(item.scenario_name);
+            scenarioCell.appendChild(scenarioName);
+            row.appendChild(scenarioCell);
+
+            const statusCell = document.createElement("td");
+            statusCell.appendChild(createHistoryStatus(item.test_run_status));
+            row.appendChild(statusCell);
+
+            row.appendChild(createHistoryCell(formatHistoryDate(item.created_at)));
+            row.appendChild(createHistoryCell(formatHistoryDate(item.completed_at)));
+
+            fragment.appendChild(row);
+        }
+
+        body.replaceChildren(fragment);
+
+        const total = data.pagination.total;
+        const offset = data.pagination.offset;
+        const count = data.items.length;
+
+        assessmentHistoryOffset = offset;
+        byId("history-total").textContent = String(total);
+        byId("history-empty").hidden = count !== 0;
+        body.closest("table").hidden = count === 0;
+
+        byId("history-page-indicator").textContent = count === 0
+            ? `No records ? ${total} total`
+            : `Showing ${offset + 1}?${offset + count} of ${total}`;
+
+        byId("history-prev-button").disabled = offset <= 0;
+        byId("history-next-button").disabled = !data.pagination.has_more;
+    }
+
+    async function loadAssessmentHistory(offset = assessmentHistoryOffset) {
+        const requestId = ++assessmentHistoryRequest;
+        const refreshButton = byId("history-refresh-button");
+
+        assessmentHistoryOffset = Math.max(0, offset);
+        refreshButton.disabled = true;
+        byId("history-prev-button").disabled = true;
+        byId("history-next-button").disabled = true;
+        clearFeedback(byId("history-feedback"));
+
+        try {
+            const query = new URLSearchParams({
+                limit: String(ASSESSMENT_HISTORY_PAGE_SIZE),
+                offset: String(assessmentHistoryOffset)
+            });
+
+            const { data } = await apiRequest(
+                `/api/v1/assessments?${query.toString()}`
+            );
+
+            if (requestId !== assessmentHistoryRequest) return;
+            renderAssessmentHistory(data);
+        } catch (error) {
+            if (requestId !== assessmentHistoryRequest) return;
+
+            if (error.status === 401) {
+                showLogin();
+                return;
+            }
+
+            const message = error.status === 403
+                ? "Your account does not have permission to read assessment history."
+                : error.status === 503
+                    ? "Assessment history is temporarily unavailable. Your records were not changed."
+                    : "Assessment history could not be loaded. Refresh and try again.";
+
+            showFeedback(byId("history-feedback"), message, "error");
+            byId("history-page-indicator").textContent = "History unavailable";
+        } finally {
+            if (requestId === assessmentHistoryRequest) {
+                refreshButton.disabled = false;
+            }
+        }
+    }
+
     function applyCurrentView() {
         if (!currentUser) return;
 
@@ -518,11 +671,12 @@
             : [];
 
         const canReadTargets = permissions.includes("targets.read");
+        const canReadAssessmentHistory = permissions.includes("assessments.read");
         const canExecuteAssessments = permissions.includes("assessments.execute")
             && permissions.includes("targets.read");
         let selectedView = window.location.hash.replace(/^#/, "");
 
-        if (!["targets", "assessments", "overview"].includes(selectedView)) {
+        if (!["targets", "assessments", "history", "overview"].includes(selectedView)) {
             selectedView = "overview";
         }
 
@@ -535,6 +689,10 @@
             deniedMessage = "Your role does not have permission to execute AI security assessments.";
             selectedView = "overview";
         }
+        if (selectedView === "history" && !canReadAssessmentHistory) {
+            deniedMessage = "Your role does not have permission to read assessment history.";
+            selectedView = "overview";
+        }
 
         if (deniedMessage) {
             history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -545,24 +703,30 @@
         const overviewSelected = selectedView === "overview";
         const targetsSelected = selectedView === "targets";
         const assessmentsSelected = selectedView === "assessments";
+        const historySelected = selectedView === "history";
 
         byId("overview-page").hidden = !overviewSelected;
         byId("targets-page").hidden = !targetsSelected;
         byId("assessments-page").hidden = !assessmentsSelected;
+        byId("assessment-history-page").hidden = !historySelected;
 
         byId("overview-nav").classList.toggle("active", overviewSelected);
         byId("targets-nav").hidden = !canReadTargets;
         byId("targets-nav").classList.toggle("active", targetsSelected);
         byId("assessments-nav").hidden = !canExecuteAssessments;
         byId("assessments-nav").classList.toggle("active", assessmentsSelected);
+        byId("history-nav").hidden = !canReadAssessmentHistory;
+        byId("history-nav").classList.toggle("active", historySelected);
         byId("assessments-module-card").hidden = !canExecuteAssessments;
 
         byId("overview-nav").setAttribute("aria-current", overviewSelected ? "page" : "false");
         byId("targets-nav").setAttribute("aria-current", targetsSelected ? "page" : "false");
         byId("assessments-nav").setAttribute("aria-current", assessmentsSelected ? "page" : "false");
+        byId("history-nav").setAttribute("aria-current", historySelected ? "page" : "false");
 
         if (targetsSelected) void loadTargets();
-        if (targetsSelected || assessmentsSelected) {
+        if (historySelected) void loadAssessmentHistory(assessmentHistoryOffset);
+        if (targetsSelected || assessmentsSelected || historySelected) {
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     }
@@ -1494,6 +1658,23 @@
 
     byId("run-ai004-button").addEventListener("click", () => {
         void runAI004();
+    });
+
+    byId("history-refresh-button").addEventListener("click", () => {
+        void loadAssessmentHistory(assessmentHistoryOffset);
+    });
+
+    byId("history-prev-button").addEventListener("click", () => {
+        if (assessmentHistoryOffset <= 0) return;
+        void loadAssessmentHistory(
+            Math.max(0, assessmentHistoryOffset - ASSESSMENT_HISTORY_PAGE_SIZE)
+        );
+    });
+
+    byId("history-next-button").addEventListener("click", () => {
+        void loadAssessmentHistory(
+            assessmentHistoryOffset + ASSESSMENT_HISTORY_PAGE_SIZE
+        );
     });
 
     window.addEventListener("hashchange", () => {

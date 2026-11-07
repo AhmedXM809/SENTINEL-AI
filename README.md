@@ -4,7 +4,7 @@
 **Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
 **Project status:** Local security-testing prototype
-**Application version:** 0.2.0
+**Application version:** 0.3.0
 **Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
 **Deployment:** Localhost-only
 
@@ -74,6 +74,8 @@ Keep the same key securely across restarts. Losing or replacing it can prevent d
 
 The frontend is served by FastAPI from `app/web/`. It provides the local application interface for authentication, approved targets, and the implemented simulations.
 
+The Assessment History workspace provides a paginated, read-only view of persisted assessment metadata. Access is controlled independently through `assessments.read`, so auditors can review records without simulation-execution permission. The list API excludes stored execution-result payloads and does not create or modify assessment, test-run, or audit records.
+
 ### Database
 
 The application uses SQLite. The checked-in schema and migrations represent database versions 1 through 6. Application readiness requires schema version 6, 19 application tables, enabled foreign-key enforcement, and all four registered AI-001 through AI-004 scenario records.
@@ -125,6 +127,14 @@ The following are implemented routes, not the broader planned API specification.
 |---|---|
 | GET | `/api/v1/targets` |
 | POST | `/api/v1/targets/initialize` |
+
+### Assessment history
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/v1/assessments` | List assessment metadata with bounded pagination |
+
+The history endpoint requires `assessments.read`. It accepts `limit` (default 20, maximum 100) and `offset` (default 0). Its response contains allowlisted assessment and test-run summary fields only; it does not return the stored `execution_result` JSON. The operation is read-only and returns `Cache-Control: no-store`.
 
 ### Security simulations
 
@@ -238,7 +248,7 @@ Report test results only after the command completes successfully in the environ
 
 ### Latest verified local test run ? November 7, 2026
 
-The full local test suite completed on November 7, 2026, with **179 passed, 113 subtests passed, 0 failures, and 41 warnings** in 2.75 seconds. The warnings concern Starlette TestClient per-request cookie deprecation.
+The full local test suite completed on November 7, 2026, with **198 passed, 124 subtests passed, 0 failures, and 54 warnings** in 2.62 seconds. The warnings concern Starlette TestClient per-request cookie deprecation.
 
 ## 7. Security Boundaries
 SENTINEL AI is an isolated training and demonstration project.
