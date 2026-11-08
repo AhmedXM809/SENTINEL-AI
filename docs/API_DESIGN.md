@@ -220,9 +220,9 @@ password hashes, or internal stack traces.
 
 ## 16. Current Implementation Status
 
-**Status reviewed: 2026-11-05**
+**Status reviewed: November 8, 2026**
 
-The routes below are implemented in the current application.
+The following routes are implemented in the current application. This inventory describes available routes, not every capability in the broader target API design.
 
 ### System routes
 
@@ -248,6 +248,16 @@ Prefix: `/api/v1`
 - `GET /targets`
 - `POST /targets/initialize`
 
+### Assessment creation and history routes
+
+Prefix: `/api/v1`
+
+- `POST /assessments` - creates a draft assessment for one or more unique registered scenario codes (AI-001 through AI-004). Requires `assessments.create`. Creates queued test-run records and an audit event; does not execute simulations.
+- `GET /assessments` - returns bounded, paginated, allowlisted assessment and test-run metadata. Requires `assessments.read`; defaults to 20 records and permits a maximum limit of 100. Does not return stored execution-result payloads.
+- `GET /assessments/{assessment_id}/report` - returns a sanitized report for a completed assessment and completed test run. Requires `assessments.read`. Raw execution JSON and untrusted simulation content are not returned.
+
+Draft creation, history access, and simulation execution use separate permission checks. A queued test run is not evidence that a simulation has executed.
+
 ### Simulation routes
 
 Prefix: `/api/v1`
@@ -259,21 +269,20 @@ Prefix: `/api/v1`
 
 ### Implemented security controls
 
-The application includes authentication and server-side authorization controls, role and permission checks, session security, MFA workflows, login throttling, and protections for authenticated state-changing requests. Simulation execution is limited to the implemented fixed scenarios and their controlled test behavior.
+The application includes authentication and server-side authorization controls, role and permission checks, session security, MFA workflows, login throttling, and protections for authenticated state-changing requests. Simulation execution is limited to the implemented fixed scenarios and their controlled mock behavior. Assessment reports use scenario-specific allowlists and are served with `Cache-Control: no-store`.
 
 ### Not yet implemented from this specification
 
-The following items remain design requirements, not available general API capabilities:
+The following remain design requirements or planned capabilities, not available general-purpose API features:
 
-- General model-profile CRUD and external provider integration.
-- General assessment creation, listing, and retrieval.
+- General model-profile CRUD and external model-provider integration.
+- Arbitrary external AI target integration.
 - General test-case catalog management.
-- Persistent test-run history and retrieval.
+- General assessment orchestration, arbitrary assessment execution, and assessment detail/update/delete operations.
 - General findings and evidence APIs.
 - Security-event and audit-log browsing APIs.
-- General risk scoring and reporting endpoints.
-- Arbitrary assessment batches and external target execution.
+- General risk scoring and framework mapping.
+- PDF export and downloadable reports.
+- Arbitrary assessment batches and unrestricted target execution.
 
-The database includes several structures designed for these future workflows, but their existence does not imply that corresponding API routes or complete user workflows are available.
-
-The API specification above remains the broader design reference. Use the implemented route inventory in this section when operating the current prototype.
+The database includes structures intended for some future workflows, but their existence does not imply that corresponding APIs or complete user workflows are available. Use this route inventory when operating the current release; the earlier sections remain the broader target API design.

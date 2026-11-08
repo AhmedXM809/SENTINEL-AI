@@ -16,7 +16,7 @@ from app.api.assessment_management import router as assessment_management_router
 app = FastAPI(
     title="SENTINEL AI",
     description="AI Security Testing & Defense Platform",
-    version="0.4.0",
+    version="1.0.0",
 )
 
 app.add_middleware(

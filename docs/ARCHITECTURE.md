@@ -1,7 +1,7 @@
 # SENTINEL AI - Technical Architecture
 
-Status: Partially implemented prototype; see implementation status
-Version: 0.1
+Status: Implemented local portfolio release; deterministic simulation scope and limitations are documented below
+Version: 1.0.0
 
 ## 1. System Components
 
@@ -141,37 +141,43 @@ remain separate and untouched.
 
 ## 12. Implementation Status
 
-**Status reviewed: 2026-11-05**
+**Status reviewed: November 8, 2026**
 
-### Implemented and verified in the current prototype
+### Implemented and verified in the current release
 
-- FastAPI application entry point and localhost web interface.
-- Authentication, password security, sessions, RBAC, and MFA workflows.
-- SQLite base schema and migrations through version 5.
+- FastAPI application entry point, localhost web interface, and health/readiness routes.
+- Authentication, Argon2id password hashing, server-side sessions, RBAC, MFA workflows, login throttling, and protected state-changing requests.
+- SQLite base schema and versioned migrations through schema version 6, with a database initialization and migration utility.
 - Direct prompt-injection simulation (AI-001).
 - Indirect prompt-injection simulation (AI-002).
 - Agent tool-misuse simulation and policy integration (AI-003).
 - Agent memory-poisoning simulation (AI-004).
-- Central security policy engine.
-- Controlled API routes and frontend dashboard integration.
-- Six trust boundaries remain the architectural security model.
+- Central security policy engine and controlled mock agent tools.
+- Permission-gated draft assessment creation for the four registered scenarios.
+- Bounded, read-only assessment history with allowlisted metadata.
+- Sanitized reports for completed assessments and test runs.
+- Audit events for assessment creation and completed simulation executions.
 
 ### Important implementation boundaries
 
-The current AI targets are deterministic mock simulations. The implemented agent tools do not execute real host commands or perform unrestricted external actions.
+The four AI scenarios are deterministic mock simulations. They do not connect to arbitrary external AI models or targets. Agent tools are simulated and do not execute arbitrary host commands or unrestricted external actions.
 
-The simulation endpoints are fixed scenarios, not general-purpose testing of arbitrary external AI systems. The presence of assessment, test-run, finding, and evidence tables does not mean that the complete assessment persistence and reporting workflow is implemented.
+Draft creation records a draft assessment, queued test runs, and an audit event. It does not execute a simulation. Simulation execution is a separate, permission-gated operation.
 
-The repository contains the schema and incremental SQL migrations, but does not currently contain an automated database bootstrap or migration runner. The local database must be initialized separately.
+Completed fixed-scenario executions persist assessment and test-run records with sanitized execution results and audit events. The current implementation does not create finding or evidence records. The assessment history API returns allowlisted metadata only. The report API constructs a sanitized report for a completed test run; it does not expose raw execution JSON or unrestricted simulation output.
 
-### Still planned
+The database initialization utility applies and verifies schema migrations through version 6. The local database should be backed up before any intentional migration or maintenance operation.
 
-- External model adapters and arbitrary authorized target integration.
+### Still planned or outside this release
+
+- External model-provider adapters and arbitrary authorized target integration.
 - Full RAG security testing and retrieval authorization workflows.
 - Additional AI security scenarios beyond AI-004.
-- Full assessment orchestration and persistent result workflows.
-- Risk scoring and framework mapping.
-- Complete evidence management and report generation.
-- Production deployment, secret management, and operational hardening.
+- General-purpose assessment orchestration and arbitrary test-case catalogs.
+- Persistent findings and evidence management.
+- General risk scoring and MITRE ATLAS mapping.
+- PDF export and downloadable PDF reports.
+- General security-event monitoring and audit-browsing interfaces.
+- Production deployment, production-grade secret management, and operational hardening.
 
-This section describes the implemented prototype. The other sections in this document continue to describe the broader target architecture.
+This release is a local training and portfolio demonstration platform. The broader target architecture described elsewhere in this document is not a claim that every planned component has been implemented.
