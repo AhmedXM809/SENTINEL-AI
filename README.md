@@ -1,10 +1,17 @@
 # SENTINEL AI
+
 ## AI Security Testing & Defense Platform
+
+[![Release](https://img.shields.io/github/v/tag/AhmedXM809/SENTINEL-AI?label=release)](https://github.com/AhmedXM809/SENTINEL-AI/tree/v1.0.0)
+![Python](https://img.shields.io/badge/Python-3.14-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)
+![Deployment](https://img.shields.io/badge/Deployment-Localhost--only-lightgrey)
 
 **Discover vulnerabilities. Validate defenses. Protect AI applications.**
 
-**Project status:** Local security-testing prototype
-**Application version:** 0.4.0
+**Release:** v1.0.0
+**Project type:** Local AI security testing and defense demonstration
 **Development environment:** Windows 11 Pro, Python 3.14.10, SQLite
 **Deployment:** Localhost-only
 
@@ -12,13 +19,24 @@
 
 ## 1. Overview
 
-SENTINEL AI is a standalone platform for demonstrating controlled AI application security testing and defense validation.
+SENTINEL AI is a standalone portfolio platform for demonstrating controlled AI application security testing and defensive validation through deterministic simulations.
 
-It combines deterministic security simulations, a centralized security policy engine, authentication and authorization controls, and a web dashboard.
+It combines four AI security scenarios, a centralized security policy engine, authentication and access controls, and a web dashboard with assessment management and sanitized reporting.
 
-The project is designed as an isolated training and portfolio platform. Its current simulations use synthetic data and mock behavior rather than attacking external AI services or production systems.
+### What the platform demonstrates
 
-## 2. Implemented Capabilities
+- **Four AI security scenarios:** direct prompt injection, indirect prompt injection, simulated agent tool misuse, and agent memory poisoning.
+- **Defensive controls:** centralized policy enforcement and permission checks for simulated agent actions.
+- **Application security:** Argon2id password hashing, server-side sessions, RBAC, TOTP MFA, and protections for authenticated state-changing requests.
+- **Assessment workflow:** draft creation, queued test runs, paginated assessment history, and sanitized reports for completed runs.
+- **Verification:** automated regression tests and versioned SQLite schema migrations.
+
+### Scope and safety
+
+SENTINEL AI is an isolated training and portfolio project. It uses synthetic data and deterministic mock behavior. It does not connect to arbitrary external AI models or targets, and its simulated agent tools do not execute arbitrary host commands. It is not presented as a production-ready security testing service.
+
+**Technical documentation:** [Architecture](docs/ARCHITECTURE.md) | [API Design](docs/API_DESIGN.md) | [Database Schema](docs/DATABASE_SCHEMA.md)
+
 
 ### AI security simulations
 
@@ -170,7 +188,6 @@ FastAPI's interactive API documentation is available at `/docs` when the local s
 From the project directory:
 
 ```powershell
-Set-Location "D:\Cybersecurity-Projects\SENTINEL-AI"
 py -3.14 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -223,7 +240,6 @@ The provisioning script prompts for credentials and does not accept the password
 Keep the server running in its own PowerShell window:
 
 ```powershell
-Set-Location "D:\Cybersecurity-Projects\SENTINEL-AI"
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info
 ```
 
@@ -320,7 +336,7 @@ The following screenshots show the SENTINEL AI local application and its control
 
 ![SENTINEL AI Dashboard](docs/images/dashboard.png)
 
-### 2. AI-002 — Indirect Prompt Injection Report
+### 2. AI-002: Indirect Prompt Injection Report
 
 ![AI-002 Security Assessment](docs/images/ai002-report.png)
 
