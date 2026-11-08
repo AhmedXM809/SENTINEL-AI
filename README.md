@@ -330,19 +330,45 @@ SENTINEL-AI/
 ```
 ## Application Screenshots
 
-The following screenshots show the SENTINEL AI local application and its controlled testing capabilities.
+The following screenshots document the SENTINEL AI v1.0.0 local application and its controlled, deterministic training simulations. All scenarios use synthetic data and mock agents. These demonstrations do not constitute production security certification.
 
-### 1. Main Dashboard
+### Platform Dashboard
 
-![SENTINEL AI Dashboard](docs/images/dashboard.png)
+![SENTINEL AI v1.0.0 dashboard](docs/screenshots/dashboard.png)
 
-### 2. AI-002: Indirect Prompt Injection Report
+### Assessment Workspace
 
-![AI-002 Security Assessment](docs/images/ai002-report.png)
+![AI Security Assessment workspace - view 1](docs/screenshots/assessment-workspace-1.png)
 
-### 3. Automated Test Results
+![AI Security Assessment workspace - view 2](docs/screenshots/assessment-workspace-2.png)
 
-![SENTINEL AI Automated Test Results](docs/images/test-results.png)
+![AI Security Assessment workspace - view 3](docs/screenshots/assessment-workspace-3.png)
+
+### Assessment History
+
+![Read-only assessment history](docs/screenshots/assessment-history.png)
+
+### Scenario Reports
+
+#### AI-001 - Direct Prompt Injection
+
+![AI-001 security assessment report](docs/screenshots/ai001-report.png)
+
+#### AI-002 - Indirect Prompt Injection
+
+![AI-002 security assessment report](docs/screenshots/ai002-report.png)
+
+#### AI-003 - Agent Tool Misuse & Permission Enforcement
+
+![AI-003 security assessment report](docs/screenshots/ai003-report.png)
+
+#### AI-004 - AI Agent Memory Poisoning
+
+![AI-004 security assessment report](docs/screenshots/ai004-report.png)
+
+### Automated Test Results
+
+![SENTINEL AI v1.0.0 automated test results](docs/screenshots/test-results.png)
 
 ## 10. Technical Documentation
 
